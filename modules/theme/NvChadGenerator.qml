@@ -131,20 +131,8 @@ ${lua}
 EOF_NVCHAD
         `
 
-        writerProcess.command = ["sh", "-c", cmd]
-        writerProcess.running = true
+        writerProcess.submit(["sh", "-c", cmd]);
     }
 
-    property Process writerProcess: Process {
-        id: writerProcess
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: console.log("NvChadGenerator: Colors generated.")
-        }
-        stderr: StdioCollector {
-            onStreamFinished: (err) => {
-                if (err) console.error("NvChadGenerator Error:", err)
-            }
-        }
-    }
+    property ThemeWriter writerProcess: ThemeWriter {}
 }

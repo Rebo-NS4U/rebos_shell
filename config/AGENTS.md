@@ -1,7 +1,7 @@
 # CONFIG KNOWLEDGE BASE
 
 ## OVERVIEW
-Reactive, file-backed configuration system built on `Quickshell.Io`. Source of truth for all shell modules. Stores JSON in `~/.config/nonchalant/config/`. Missing files are created from in-tree defaults.
+Reactive, file-backed configuration system built on `Quickshell.Io`. Source of truth for all shell modules. Stores JSON in `~/.config/rebos_shell/config/`. Missing files are created from in-tree defaults.
 
 ## STRUCTURE
 - **Config.qml**: Core singleton. `FileView` monitors disk; `JsonAdapter` creates bidirectional QML bindings. Each live module domain has its own `FileView`/`JsonAdapter` pair.

@@ -13,6 +13,19 @@ import qs.config
 Item {
     id: root
 
+    property point lastPointerPosition: Qt.point(-1, -1)
+
+    function rememberPointer(area: Item, x: real, y: real) {
+        lastPointerPosition = area.mapToGlobal(x, y);
+    }
+
+    function pointerMoved(area: Item, x: real, y: real): bool {
+        const position = area.mapToGlobal(x, y);
+        const moved = position.x !== lastPointerPosition.x || position.y !== lastPointerPosition.y;
+        lastPointerPosition = position;
+        return moved;
+    }
+
     implicitWidth: 464
     implicitHeight: 320
 
@@ -194,9 +207,13 @@ Item {
                 height: 48
 
                 MouseArea {
+                    id: projectMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    onEntered: {
+                    onEntered: root.rememberPointer(projectMouseArea, mouseX, mouseY)
+                    onPositionChanged: mouse => {
+                        if (!root.pointerMoved(projectMouseArea, mouse.x, mouse.y))
+                            return;
                         root.selectedIndex = index;
                         GlobalStates.projectPickerSelectedIndex = index;
                         resultsList.currentIndex = index;

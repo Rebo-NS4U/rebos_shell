@@ -6,7 +6,7 @@ function generate(paletteColors) {
         // Return a passthrough shader if no palette
         return `//!HOOK MAIN
 //!BIND HOOKED
-//!DESC Nonchalant Passthrough
+//!DESC rebos_shell Passthrough
 void main() {
     HOOKED_col = HOOKED_tex(HOOKED_pos);
 }`;
@@ -47,7 +47,7 @@ void main() {
 
     return `//!HOOK MAIN
 //!BIND HOOKED
-//!DESC Nonchalant Palette Tint
+//!DESC rebos_shell Palette Tint
 
 // Simple dithering function
 float noise_random(vec2 uv) {

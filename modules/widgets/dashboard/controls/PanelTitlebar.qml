@@ -1,5 +1,4 @@
 pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -7,11 +6,10 @@ import qs.modules.theme
 import qs.modules.components
 import qs.config
 
-// Titlebar for control panels with title, status, toggle and action buttons
-RowLayout {
+ColumnLayout {
     id: root
-
     property string title: ""
+    property string description: ""
     property string statusText: ""
     property color statusColor: Styling.srItem("overprimary")
     property bool showToggle: false
@@ -26,159 +24,93 @@ RowLayout {
 
     signal toggleChanged(bool checked)
 
-    // Matches the 12px content indent used by items inside the panels
-    // (WifiNetworkItem, BluetoothDeviceItem, GpuPanel, ...) so the title and
-    // the trailing controls line up with the content below them.
     readonly property int horizontalMargin: 12
-
     Layout.fillWidth: true
-    Layout.preferredHeight: 36
+    Layout.preferredHeight: implicitHeight
     spacing: 8
-
-    // Title
-    Text {
-        renderType: Text.NativeRendering
-        font.hintingPreference: Font.PreferFullHinting
-        leftPadding: root.horizontalMargin
-        text: root.title
-        font.family: Config.theme.font
-        font.pixelSize: Styling.fontSize(0)
-        font.weight: Font.Medium
-        color: Colors.overBackground
-        elide: Text.ElideRight
-        // fillWidth makes this shrinkable when the panel is too narrow;
-        // maximumWidth: implicitWidth keeps it from expanding into the slack
-        // (the filler below handles that), so the status stays adjacent.
-        // Without this the RowLayout overflows and pushes the trailing
-        // actions out of the panel.
+    RowLayout {
         Layout.fillWidth: true
-        Layout.maximumWidth: implicitWidth
-        Layout.minimumWidth: 0
-    }
-
-    // Status text (e.g., "Connecting...", "Bypassed")
-    Text {
-        renderType: Text.NativeRendering
-        font.hintingPreference: Font.PreferFullHinting
-        visible: root.statusText !== ""
-        text: root.statusText
-        font.family: Config.theme.font
-        font.pixelSize: Styling.fontSize(-2)
-        color: root.statusColor
-        elide: Text.ElideRight
-        Layout.fillWidth: true
-        Layout.maximumWidth: implicitWidth
-        Layout.minimumWidth: 0
-    }
-
-    Item {
-        Layout.fillWidth: true
-    }
-
-    // Custom content container
-    Item {
-        id: customContentContainer
-        Layout.preferredWidth: childrenRect.width
-        Layout.preferredHeight: childrenRect.height
-        visible: children.length > 0
-    }
-
-    // Action buttons
-    Repeater {
-        model: root.actions
-
-        delegate: Button {
-            id: actionButton
-            required property var modelData
-            required property int index
-            flat: true
-            implicitWidth: 28
-            implicitHeight: 28
-            enabled: (modelData.enabled !== undefined ? modelData.enabled : true) && !(modelData.loading ?? false)
-
-            property bool isLoading: modelData.loading ?? false
-
-            background: StyledRect {
-                variant: actionButton.hovered ? "focus" : "common"
-                radius: Styling.radius(-4)
-            }
-
-            contentItem: Text {
-                id: iconText
-                text: actionButton.modelData.icon || ""
-                font.family: Icons.font
-                font.pixelSize: 14
-                color: actionButton.isLoading ? Styling.srItem("overprimary") : (actionButton.enabled ? Colors.overBackground : Colors.outline)
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-
-                RotationAnimation on rotation {
-                    running: actionButton.isLoading
-                    from: 0
-                    to: 360
-                    duration: 1000
-                    loops: Animation.Infinite
-                }
-            }
-
-            onClicked: {
-                if (actionButton.modelData.onClicked) {
-                    actionButton.modelData.onClicked();
-                }
-            }
-
-            StyledToolTip {
-                visible: actionButton.hovered && actionButton.modelData.tooltip
-                tooltipText: actionButton.modelData.tooltip || ""
-            }
+        Layout.preferredHeight: Styling.fontSize(0) * 3.5
+        spacing: 8
+        StyledText {
+            Layout.fillWidth: true
+            Layout.maximumWidth: implicitWidth
+            Layout.minimumWidth: 0
+            leftPadding: root.horizontalMargin
+            text: root.title
+            font.pixelSize: Styling.fontSize(6)
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
         }
-    }
-
-    // Toggle switch
-    Switch {
-        id: toggleSwitch
-        visible: root.showToggle
-        checked: root.toggleChecked
-        onCheckedChanged: root.toggleChanged(checked)
-
-        indicator: Rectangle {
-            implicitWidth: 40
-            implicitHeight: 20
-            x: toggleSwitch.leftPadding
-            y: parent.height / 2 - height / 2
-            radius: height / 2
-            color: toggleSwitch.checked ? Styling.srItem("overprimary") : Colors.surfaceBright
-            border.color: toggleSwitch.checked ? Styling.srItem("overprimary") : Colors.outline
-
-            Behavior on color {
-                enabled: Config.animDuration > 0
-                ColorAnimation {
-                    duration: Config.animDuration / 2
+        StyledText {
+            visible: root.statusText.length > 0
+            Layout.maximumWidth: implicitWidth
+            Layout.minimumWidth: 0
+            Layout.fillWidth: true
+            text: root.statusText
+            font.pixelSize: Styling.fontSize(-2)
+            color: root.statusColor
+            elide: Text.ElideRight
+        }
+        Item { Layout.fillWidth: true }
+        Item {
+            id: customContentContainer
+            Layout.preferredWidth: childrenRect.width
+            Layout.preferredHeight: childrenRect.height
+            visible: children.length > 0
+        }
+        Repeater {
+            model: root.actions
+            delegate: Button {
+                id: actionButton
+                required property var modelData
+                required property int index
+                readonly property bool isLoading: modelData.loading ?? false
+                implicitWidth: Styling.fontSize(0) * 2.5
+                implicitHeight: implicitWidth
+                enabled: (modelData.enabled ?? true) && !isLoading
+                background: StyledRect {
+                    variant: actionButton.hovered ? "focus" : "common"
+                    radius: Styling.radius(-4)
                 }
-            }
-
-            Rectangle {
-                x: toggleSwitch.checked ? parent.width - width - 2 : 2
-                y: 2
-                width: parent.height - 4
-                height: width
-                radius: width / 2
-                color: toggleSwitch.checked ? Colors.background : Colors.overSurfaceVariant
-
-                Behavior on x {
-                    enabled: Config.animDuration > 0
-                    NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutCubic
+                contentItem: StyledText {
+                    text: actionButton.modelData.icon || ""
+                    font.family: Icons.font
+                    font.pixelSize: Styling.fontSize(2)
+                    color: actionButton.enabled ? Colors.overSurface : Colors.outline
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    RotationAnimation on rotation {
+                        running: actionButton.isLoading
+                        from: 0; to: 360
+                        duration: Math.max(1, Config.animDuration * 4)
+                        loops: Animation.Infinite
                     }
                 }
+                onClicked: { if (modelData.onClicked) modelData.onClicked(); }
+                StyledToolTip {
+                    visible: actionButton.hovered && (actionButton.modelData.tooltip || "").length > 0
+                    tooltipText: actionButton.modelData.tooltip || ""
+                }
             }
         }
-        background: null
+        StyledSwitch {
+            objectName: "settings-page-toggle"
+            visible: root.showToggle
+            checked: root.toggleChecked
+            onToggled: root.toggleChanged(checked)
+        }
+        Item { Layout.preferredWidth: root.horizontalMargin }
     }
-
-    // Trailing margin so the toggle/actions don't touch the panel edge
-    Item {
-        Layout.preferredWidth: root.horizontalMargin
+    StyledText {
+        visible: root.description.length > 0
+        Layout.fillWidth: true
+        Layout.leftMargin: root.horizontalMargin
+        Layout.rightMargin: root.horizontalMargin
+        Layout.bottomMargin: 12
+        text: root.description
+        wrapMode: Text.WordWrap
+        color: Colors.overSurfaceVariant
+        font.pixelSize: Styling.fontSize(-1)
     }
 }

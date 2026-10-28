@@ -1,9 +1,11 @@
 
 function crawl(rootItem, sectionId) {
     let results = [];
+    const visited = new Set();
 
     function traverse(item, currentSubSection) {
-        if (!item) return;
+        if (!item || visited.has(item)) return;
+        visited.add(item);
 
         // Determine subsection context
         // We look for 'settingsSection' property which we will add to section containers

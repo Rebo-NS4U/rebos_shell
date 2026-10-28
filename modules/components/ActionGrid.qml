@@ -239,9 +239,8 @@ FocusScope {
                         Behavior on scale {
                             enabled: (Config.animDuration ?? 0) > 0
                             NumberAnimation {
-                                duration: actionButton.pressed ? 80 : 250
-                                easing.type: actionButton.pressed ? Easing.OutQuad : Easing.OutBack
-                                easing.overshoot: 1.5
+                                duration: actionButton.pressed ? Motion.press : Motion.feedback
+                                easing.type: Motion.feedbackCurve
                             }
                         }
 
@@ -285,8 +284,8 @@ FocusScope {
                                 Behavior on color {
                                     enabled: Config.animDuration > 0
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutQuart
+                                        duration: Motion.feedback
+                                        easing.type: Motion.feedbackCurve
                                     }
                                 }
                             }
@@ -310,8 +309,8 @@ FocusScope {
                                 Behavior on color {
                                     enabled: Config.animDuration > 0
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutQuart
+                                        duration: Motion.feedback
+                                        easing.type: Motion.feedbackCurve
                                     }
                                 }
                             }

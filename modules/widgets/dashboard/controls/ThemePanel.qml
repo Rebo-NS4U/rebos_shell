@@ -8,63 +8,22 @@ import qs.modules.components
 import Quickshell
 import Quickshell.Io
 import qs.config
+import qs.modules.globals
 
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
     property string currentSection: ""
     property string selectedVariant: "bg"
 
-    component SectionButton: StyledRect {
-        id: sectionBtn
-        required property string text
+    component SectionButton: SettingsSectionCard {
         required property string sectionId
-
-        property bool isHovered: false
-
-        variant: isHovered ? "focus" : "pane"
-        Layout.fillWidth: true
-        Layout.preferredHeight: 56
-        radius: Styling.radius(0)
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 16
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: sectionBtn.text
-                font.family: Config.theme.font
-                font.pixelSize: Styling.fontSize(0)
-                font.bold: true
-                color: Colors.overBackground
-                Layout.fillWidth: true
-            }
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: Icons.caretRight
-                font.family: Icons.font
-                font.pixelSize: 20
-                color: Colors.overSurfaceVariant
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onEntered: sectionBtn.isHovered = true
-            onExited: sectionBtn.isHovered = false
-            onClicked: root.currentSection = sectionBtn.sectionId
-        }
+        objectName: "settings-section-" + sectionId
+        onClicked: root.currentSection = sectionId
     }
 
     // Color picker state
@@ -92,19 +51,6 @@ Item {
             colorPickerCallback(color);
         }
         colorPickerCurrentColor = color;
-    }
-
-    FileView {
-        id: wallpaperConfig
-        // QUICKSHELL-GIT: path: Quickshell.cachePath("wallpapers.json")
-        path: Quickshell.env("HOME") + "/.cache/nonchalant/wallpapers.json"
-
-        JsonAdapter {
-            property string currentWall: ""
-            property string wallPath: ""
-            property string matugenScheme: "scheme-tonal-spot"
-            property string activeColorPreset: ""
-        }
     }
 
     // Convert sr property name to variant id (srBg -> bg, srPrimaryFocus -> primaryfocus)
@@ -188,7 +134,8 @@ Item {
                     id: titlebar
                     width: root.contentWidth
                     anchors.horizontalCenter: parent.horizontalCenter
-                    title: root.currentSection === "" ? "Theme" : (root.currentSection.charAt(0).toUpperCase() + root.currentSection.slice(1))
+                    title: ({style: "Theme style", general: "Fonts and corners", motion: "Motion", blur: "Blur", shadow: "Shadows", colors: "Wallpaper colors", variants: "Backgrounds and borders"})[root.currentSection] || "Appearance"
+                    description: root.currentSection === "" ? "Theme style, colors, fonts and backgrounds." : ""
 
                     actions: {
                         if (root.currentSection !== "") {
@@ -222,23 +169,69 @@ Item {
                     // ═══════════════════════════════════════════════════════════════
                     // MENU SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    GridLayout {
                         visible: root.currentSection === ""
                         Layout.fillWidth: true
-                        spacing: 8
-
+                        columns: root.contentWidth < Styling.fontSize(0) * 30 ? 1 : 2
+                        columnSpacing: 12
+                        rowSpacing: 12
+                        ShellStyleSettings { Layout.fillWidth: true; Layout.columnSpan: parent.columns }
                         SectionButton {
-                            text: "General"
+                            sectionId: "blur"
+                            text: "Blur"
+                            description: "Glass strength, shell-only blur and GPU use."
+                            glyph: Icons.drop
+                        }
+                        SectionButton {
+                            sectionId: "motion"
+                            text: "Motion"
+                            description: "Panel transitions, selection and button feedback."
+                            glyph: Icons.lightning
+                        }
+                        SectionButton {
+                            text: "Fonts and corners"
+                            description: "Text size, fonts and corner roundness."
+                            glyph: Icons.gear
                             sectionId: "general"
                         }
                         SectionButton {
-                            text: "Shadow"
+                            text: "Shadows"
+                            description: "Shadow size, opacity and position."
+                            glyph: Icons.drop
                             sectionId: "shadow"
                         }
                         SectionButton {
-                            text: "Colors"
+                            text: "Wallpaper colors"
+                            description: "Choose colors from your wallpaper."
+                            glyph: Icons.palette
                             sectionId: "colors"
                         }
+                        SectionButton {
+                            text: "Backgrounds and borders"
+                            description: "Set colors, gradients and outlines."
+                            glyph: Icons.paintBrush
+                            sectionId: "variants"
+                        }
+                    }
+
+                    MotionSettings {
+                        Layout.fillWidth: true
+                        visible: root.currentSection === "motion"
+                    }
+
+                    BlurSettings {
+                        Layout.fillWidth: true
+                        visible: root.currentSection === "blur"
+                    }
+
+                    ShellStyleSettings {
+                        visible: root.currentSection === "style" || root.currentSection === "general"
+                        Layout.fillWidth: true
+                    }
+
+                    PaletteSettings {
+                        visible: root.currentSection === "colors"
+                        Layout.fillWidth: true
                     }
 
                     // General section
@@ -254,10 +247,10 @@ Item {
                             anchors.top: parent.top
                             spacing: 8
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
-                                text: "General"
+                                text: "Fonts and corners"
                                 font.family: Config.theme.font
                                 font.pixelSize: Styling.fontSize(-1)
                                 font.weight: Font.Medium
@@ -270,7 +263,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Wallpapers"
@@ -300,7 +293,7 @@ Item {
                                         verticalAlignment: TextInput.AlignVCenter
 
                                         // Placeholder for default path
-                                        Text {
+                                        StyledText {
                                             anchors.fill: parent
                                             verticalAlignment: Text.AlignVCenter
                                             text: "Default"
@@ -309,13 +302,10 @@ Item {
                                             visible: !parent.text && !parent.activeFocus
                                         }
 
-                                        text: wallpaperConfig.adapter.wallPath
+                                        text: GlobalStates.wallpaperManager?.wallpaperDir ?? ""
 
                                         onEditingFinished: {
-                                            if (wallpaperConfig.adapter.wallPath !== text) {
-                                                wallpaperConfig.adapter.wallPath = text;
-                                                wallpaperConfig.writeAdapter();
-                                            }
+                                            GlobalStates.wallpaperManager?.setWallpaperDirectory(text);
                                         }
                                     }
                                 }
@@ -326,7 +316,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Tint Icons"
@@ -336,7 +326,7 @@ Item {
                                     Layout.fillWidth: true
                                 }
 
-                                Switch {
+                                StyledSwitch {
                                     id: tintIconsSwitch
                                     checked: Config.theme.tintIcons
 
@@ -354,95 +344,6 @@ Item {
                                         }
                                     }
 
-                                    indicator: Rectangle {
-                                        implicitWidth: 40
-                                        implicitHeight: 20
-                                        x: tintIconsSwitch.leftPadding
-                                        y: parent.height / 2 - height / 2
-                                        radius: height / 2
-                                        color: tintIconsSwitch.checked ? Styling.srItem("overprimary") : Colors.surfaceBright
-                                        border.color: tintIconsSwitch.checked ? Styling.srItem("overprimary") : Colors.outline
-
-                                        Behavior on color {
-                                            enabled: Config.animDuration > 0
-                                            ColorAnimation {
-                                                duration: Config.animDuration / 2
-                                            }
-                                        }
-
-                                        Rectangle {
-                                            x: tintIconsSwitch.checked ? parent.width - width - 2 : 2
-                                            y: 2
-                                            width: parent.height - 4
-                                            height: width
-                                            radius: width / 2
-                                            color: tintIconsSwitch.checked ? Colors.background : Colors.overSurfaceVariant
-
-                                            Behavior on x {
-                                                enabled: Config.animDuration > 0
-                                                NumberAnimation {
-                                                    duration: Config.animDuration / 2
-                                                    easing.type: Easing.OutCubic
-                                                }
-                                            }
-                                        }
-                                    }
-                                    background: null
-                                }
-                            }
-
-                            // Animation Duration slider
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 8
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: "Animation"
-                                    font.family: Config.theme.font
-                                    font.pixelSize: Styling.fontSize(0)
-                                    color: Colors.overBackground
-                                    Layout.preferredWidth: 80
-                                }
-
-                                StyledSlider {
-                                    id: animDurationSlider
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 20
-                                    progressColor: Styling.srItem("overprimary")
-                                    tooltipText: `${Math.round(value * 1000)}ms`
-                                    scroll: true
-                                    stepSize: 0.01  // 10ms steps (1/100 of 1000ms)
-                                    snapMode: "always"
-
-                                    readonly property real configValue: Config.theme.animDuration / 1000
-
-                                    onConfigValueChanged: {
-                                        if (Math.abs(value - configValue) > 0.001) {
-                                            value = configValue;
-                                        }
-                                    }
-
-                                    Component.onCompleted: value = configValue
-
-                                    onValueChanged: {
-                                        let newDuration = Math.round(value * 1000);
-                                        if (newDuration !== Config.theme.animDuration) {
-                                            Config.theme.animDuration = newDuration;
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: Config.theme.animDuration + "ms"
-                                    font.family: Config.theme.font
-                                    font.pixelSize: Styling.fontSize(0)
-                                    color: Colors.overBackground
-                                    horizontalAlignment: Text.AlignRight
-                                    Layout.preferredWidth: 50
                                 }
                             }
 
@@ -450,7 +351,7 @@ Item {
                                 Layout.fillWidth: true
                             }
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
                                 text: "Fonts"
@@ -466,7 +367,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "UI Font"
@@ -556,7 +457,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "px"
@@ -571,7 +472,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Mono Font"
@@ -661,7 +562,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "px"
@@ -675,10 +576,10 @@ Item {
                                 Layout.fillWidth: true
                             }
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
-                                text: "Roundness"
+                                text: "Shell corner radius"
                                 font.family: Config.theme.font
                                 font.pixelSize: Styling.fontSize(-1)
                                 font.weight: Font.Medium
@@ -720,7 +621,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: Math.round(roundnessSlider.value * 20)
@@ -747,7 +648,7 @@ Item {
                             anchors.top: parent.top
                             spacing: 8
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
                                 text: "Shadow"
@@ -763,7 +664,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Opacity"
@@ -800,7 +701,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: Math.round(shadowOpacitySlider.value * 100) + "%"
@@ -817,7 +718,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Blur"
@@ -855,7 +756,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: Config.theme.shadowBlur.toFixed(1)
@@ -872,7 +773,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Offset X"
@@ -910,7 +811,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: Config.theme.shadowXOffset
@@ -926,7 +827,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Offset Y"
@@ -964,7 +865,7 @@ Item {
                                     }
                                 }
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: Config.theme.shadowYOffset
@@ -981,7 +882,7 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                Text {
+                                StyledText {
                                     renderType: Text.NativeRendering
                                     font.hintingPreference: Font.PreferFullHinting
                                     text: "Color"
@@ -1015,7 +916,7 @@ Item {
                                             border.color: Colors.outline
                                         }
 
-                                        Text {
+                                        StyledText {
                                             renderType: Text.NativeRendering
                                             font.hintingPreference: Font.PreferFullHinting
                                             Layout.fillWidth: true
@@ -1063,8 +964,8 @@ Item {
                     // Variant selector section
                     Item {
                         id: variantSelectorPane
-                        visible: root.currentSection === "colors"
-                        property string settingsSection: "colors"
+                        visible: root.currentSection === "variants"
+                        property string settingsSection: "variants"
                         Layout.fillWidth: true
                         Layout.preferredHeight: variantSelectorContent.implicitHeight
 
@@ -1085,7 +986,15 @@ Item {
                             anchors.top: parent.top
                             spacing: 8
 
-                            Text {
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: Styling.unifiedStyle ? "Choose Custom under Theme style to edit backgrounds and borders." : "Custom background and border settings are active."
+                                wrapMode: Text.WordWrap
+                                color: Colors.overSurfaceVariant
+                                font.pixelSize: Styling.fontSize(-1)
+                            }
+
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
                                 text: "Variant"
@@ -1159,13 +1068,13 @@ Item {
                                                                 height: checkIconRow.height
                                                                 clip: true
 
-                                                                Text {
+                                                                StyledText {
                                                                     renderType: Text.NativeRendering
                                                                     font.hintingPreference: Font.PreferFullHinting
                                                                     id: checkIconRow
                                                                     text: Icons.accept
                                                                     font.family: Icons.font
-                                                                    font.pixelSize: 16
+                                                                    font.pixelSize: Styling.fontSize(2)
                                                                     color: variantTagRow.item
                                                                     visible: variantTagRow.isSelected
                                                                     opacity: variantTagRow.isSelected ? 1 : 0
@@ -1188,7 +1097,7 @@ Item {
                                                                 }
                                                             }
 
-                                                            Text {
+                                                            StyledText {
                                                                 renderType: Text.NativeRendering
                                                                 font.hintingPreference: Font.PreferFullHinting
                                                                 id: tagContentRow
@@ -1319,13 +1228,13 @@ Item {
                                                         height: checkIcon.height
                                                         clip: true
 
-                                                        Text {
+                                                        StyledText {
                                                             renderType: Text.NativeRendering
                                                             font.hintingPreference: Font.PreferFullHinting
                                                             id: checkIcon
                                                             text: Icons.accept
                                                             font.family: Icons.font
-                                                            font.pixelSize: 16
+                                                            font.pixelSize: Styling.fontSize(2)
                                                             color: variantTag.item
                                                             visible: variantTag.isSelected
                                                             opacity: variantTag.isSelected ? 1 : 0
@@ -1348,7 +1257,7 @@ Item {
                                                         }
                                                     }
 
-                                                    Text {
+                                                    StyledText {
                                                         renderType: Text.NativeRendering
                                                         font.hintingPreference: Font.PreferFullHinting
                                                         id: tagContent
@@ -1410,13 +1319,13 @@ Item {
 
                                     property bool isHovered: false
 
-                                    Text {
+                                    StyledText {
                                         renderType: Text.NativeRendering
                                         font.hintingPreference: Font.PreferFullHinting
                                         anchors.centerIn: parent
                                         text: variantSelectorPane.variantExpanded ? Icons.caretUp : Icons.caretDown
                                         font.family: Icons.font
-                                        font.pixelSize: 16
+                                        font.pixelSize: Styling.fontSize(2)
                                         color: expandToggleButton.item
                                     }
 
@@ -1437,8 +1346,8 @@ Item {
 
                     // Editor section
                     Item {
-                        visible: root.currentSection === "colors"
-                        property string settingsSection: "colors"
+                        visible: root.currentSection === "variants"
+                        property string settingsSection: "variants"
                         Layout.fillWidth: true
                         Layout.preferredHeight: editorContent.implicitHeight
 
@@ -1449,7 +1358,7 @@ Item {
                             anchors.top: parent.top
                             spacing: 8
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
                                 text: "Editor - " + root.getVariantLabel(root.selectedVariant)

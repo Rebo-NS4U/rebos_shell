@@ -13,9 +13,22 @@ import qs.config
 
 Item {
     id: root
+
+    property point lastPointerPosition: Qt.point(-1, -1)
+
+    function rememberPointer(area: Item, x: real, y: real) {
+        lastPointerPosition = area.mapToGlobal(x, y);
+    }
+
+    function pointerMoved(area: Item, x: real, y: real): bool {
+        const position = area.mapToGlobal(x, y);
+        const moved = position.x !== lastPointerPosition.x || position.y !== lastPointerPosition.y;
+        lastPointerPosition = position;
+        return moved;
+    }
     
     implicitWidth: 464
-    implicitHeight: 320
+    implicitHeight: 368
     
     focus: true
 
@@ -34,35 +47,35 @@ Item {
         Qt.callLater(() => root.focusSearchInput());
     }
 
-    // Retry briefly because the view is pushed into a StackView asynchronously.
+    // Focus on the next frame; retry only while the layer is acquiring focus.
     Timer {
         id: focusRetryTimer
-        interval: 50
+        interval: 16
         repeat: true
-        running: false
         property int retries: 0
         onTriggered: {
-            if (retries > 10) {
-                running = false;
-                return;
-            }
-            
-            root.focusActiveSearchInput();
-            running = false;
-            retries++;
+            if (root.focusActiveSearchInput() || ++retries >= 10)
+                stop();
         }
     }
 
     function focusSearchInput() {
-        focusRetryTimer.retries = 0;
-        focusRetryTimer.start();
+        Qt.callLater(() => {
+            if (!root.focusActiveSearchInput()) {
+                focusRetryTimer.retries = 0;
+                focusRetryTimer.restart();
+            }
+        });
     }
 
-    function focusActiveSearchInput() {
-        if (GlobalStates.launcherMode === "projects")
+    function focusActiveSearchInput(): bool {
+        if (!root.visible || !root.enabled)
+            return false;
+        if (GlobalStates.launcherMode === "projects") {
             projectPicker.focusSearchInput();
-        else
-            appLauncher.focusSearchInput();
+            return projectPicker.activeFocus;
+        }
+        return appLauncher.focusSearchInput();
     }
 
     Connections {
@@ -98,39 +111,6 @@ Item {
         property var filteredApps: []
         property var appsById: ({})
 
-        // Incremental loading state
-        property var pendingApps: []
-        property int loadedCount: 0
-        property int batchSize: 10
-
-        Timer {
-            id: incrementalLoader
-            interval: 100
-            repeat: true
-            running: false
-            onTriggered: {
-                if (appLauncher.loadedCount >= appLauncher.pendingApps.length || appLauncher.batchSize <= 0) {
-                    running = false;
-                    return;
-                }
-
-                let endIndex = Math.min(appLauncher.loadedCount + appLauncher.batchSize, appLauncher.pendingApps.length);
-                for (let i = appLauncher.loadedCount; i < endIndex; i++) {
-                    let app = appLauncher.pendingApps[i];
-                    appsModel.append({
-                        appId: app.id,
-                        appName: app.name,
-                        appIcon: app.icon,
-                        appComment: app.comment,
-                        appExecString: app.execString,
-                        appCategories: app.categories,
-                        appRunInTerminal: app.runInTerminal
-                    });
-                }
-                appLauncher.loadedCount = endIndex;
-            }
-        }
-
         function updateFilteredApps() {
             if (searchText.length > 0) {
                 filteredApps = AppSearch.fuzzyQuery(searchText);
@@ -149,41 +129,38 @@ Item {
         }
 
         function updateAppsModel() {
-            // Stop any existing loading
-            incrementalLoader.stop();
-            
-            let newApps = filteredApps;
-            appLauncher.pendingApps = newApps;
-
-            // Build apps by ID map for execution
-            appsById = {};
-            for (let i = 0; i < newApps.length; i++) {
-                appsById[newApps[i].id] = newApps[i];
+            // Keep unchanged rows alive instead of destroying every delegate per keypress.
+            const nextApps = filteredApps;
+            const nextById = {};
+            for (let i = 0; i < nextApps.length; i++) {
+                const app = nextApps[i];
+                nextById[app.id] = app;
+                const row = {
+                    appId: app.id, appName: app.name, appIcon: app.icon,
+                    appComment: app.comment, appExecString: app.execString,
+                    appCategories: app.categories, appRunInTerminal: app.runInTerminal
+                };
+                if (i < appsModel.count && appsModel.get(i).appId === app.id) {
+                    appsModel.set(i, row);
+                    continue;
+                }
+                let existing = -1;
+                for (let j = i + 1; j < appsModel.count; j++) {
+                    if (appsModel.get(j).appId === app.id) {
+                        existing = j;
+                        break;
+                    }
+                }
+                if (existing >= 0) {
+                    appsModel.move(existing, i, 1);
+                    appsModel.set(i, row);
+                } else {
+                    appsModel.insert(i, row);
+                }
             }
-
-            appsModel.clear();
-            
-            // Load first batch immediately for instant feedback
-            let initialBatch = Math.min(appLauncher.batchSize, newApps.length);
-            for (let i = 0; i < initialBatch; i++) {
-                let app = newApps[i];
-                appsModel.append({
-                    appId: app.id,
-                    appName: app.name,
-                    appIcon: app.icon,
-                    appComment: app.comment,
-                    appExecString: app.execString,
-                    appCategories: app.categories,
-                    appRunInTerminal: app.runInTerminal
-                });
-            }
-            
-            appLauncher.loadedCount = initialBatch;
-            
-            // Schedule rest if needed
-            if (appLauncher.loadedCount < newApps.length) {
-                incrementalLoader.start();
-            }
+            if (appsModel.count > nextApps.length)
+                appsModel.remove(nextApps.length, appsModel.count - nextApps.length);
+            appsById = nextById;
         }
 
         function executeApp(appId) {
@@ -199,27 +176,20 @@ Item {
             id: appsModel
         }
 
-        Component.onCompleted: {
-            // Defer initial load to allow animation to start smoothly
-            initialLoadTimer.start();
-            
-            // Re-update when UsageTracker finishes loading
-            UsageTracker.usageDataReady.connect(function() {
+        Component.onCompleted: Qt.callLater(updateFilteredApps)
+
+        Connections {
+            target: UsageTracker
+            function onUsageDataReady() {
                 AppSearch.invalidateCache();
-                if (appLauncher.visible) {
-                     appLauncher.updateFilteredApps();
-                }
-            });
+                appLauncher.updateFilteredApps();
+            }
         }
 
-        Timer {
-            id: initialLoadTimer
-            interval: 100
-            repeat: false
-            onTriggered: {
-                appLauncher.updateFilteredApps();
-                appLauncher.updateAppsModel();
-                appLauncher.focusSearchInput();
+        Connections {
+            target: AppSearch
+            function onListChanged() {
+                Qt.callLater(appLauncher.updateFilteredApps);
             }
         }
 
@@ -246,7 +216,7 @@ Item {
         }
 
         function focusSearchInput() {
-            searchInput.focusInput();
+            return searchInput.focusInput();
         }
 
         function adjustScrollForExpandedItem(index) {
@@ -303,8 +273,8 @@ Item {
                 width: parent.width
                 anchors.top: parent.top
                 text: GlobalStates.launcherSearchText
-                placeholderText: "Search applications..."
-                iconText: ""
+                placeholderText: "Type to find an app…"
+                iconText: Icons.magnifyingGlass
                 handleTabNavigation: true
                 clearOnEscape: false
 
@@ -485,12 +455,62 @@ Item {
                 }
             }
 
+            RowLayout {
+                id: keyboardHints
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 24
+                spacing: 12
+
+                Text {
+                    Layout.fillWidth: true
+                    text: appLauncher.searchText.length > 0
+                        ? appsModel.count + (appsModel.count === 1 ? " match" : " matches")
+                        : "Applications"
+                    color: Colors.outline
+                    font.family: Config.theme.font
+                    font.pixelSize: Styling.fontSize(-2)
+                }
+                Text {
+                    text: "↵ Open   ·   Tab Projects   ·   Esc Back"
+                    color: Colors.outline
+                    font.family: Config.theme.font
+                    font.pixelSize: Styling.fontSize(-2)
+                }
+            }
+
+            Column {
+                anchors.centerIn: resultsList
+                width: resultsList.width - 32
+                spacing: 8
+                visible: appsModel.count === 0
+
+                Text {
+                    width: parent.width
+                    text: "No applications found"
+                    horizontalAlignment: Text.AlignHCenter
+                    color: Colors.overBackground
+                    font.family: Config.theme.font
+                    font.pixelSize: Config.theme.fontSize
+                }
+                Text {
+                    width: parent.width
+                    text: "Try another name or press Esc to clear"
+                    horizontalAlignment: Text.AlignHCenter
+                    color: Colors.outline
+                    font.family: Config.theme.font
+                    font.pixelSize: Styling.fontSize(-2)
+                }
+            }
+
             // Results list
             ListView {
                 id: resultsList
                 width: parent.width
                 anchors.top: searchInput.bottom
-                anchors.bottom: parent.bottom
+                anchors.bottom: keyboardHints.top
+                anchors.bottomMargin: 8
                 anchors.topMargin: 8
                 visible: true
 
@@ -498,6 +518,7 @@ Item {
                 interactive: appLauncher.expandedItemIndex === -1
                 cacheBuffer: 96
                 reuseItems: true
+                boundsBehavior: Flickable.StopAtBounds
 
                 property bool isScrolling: dragging || flicking
 
@@ -526,7 +547,7 @@ Item {
                         for (var i = 0; i < currentIndex && i < appsModel.count; i++) {
                             var itemHeight = 48;
                             if (i === appLauncher.expandedItemIndex) {
-                                var listHeight = 36 * 3;
+                                var listHeight = 36 * 2;
                                 itemHeight = 48 + 4 + listHeight + 8;
                             }
                             itemY += itemHeight;
@@ -534,7 +555,7 @@ Item {
 
                         var currentItemHeight = 48;
                         if (currentIndex === appLauncher.expandedItemIndex) {
-                            var listHeight = 36 * 3;
+                            var listHeight = 36 * 2;
                             currentItemHeight = 48 + 4 + listHeight + 8;
                         }
 
@@ -591,8 +612,11 @@ Item {
                         hoverEnabled: !resultsList.isScrolling
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-                        onEntered: {
-                            if (resultsList.isScrolling)
+                        cursorShape: Qt.PointingHandCursor
+
+                        onEntered: root.rememberPointer(mouseArea, mouseX, mouseY)
+                        onPositionChanged: mouse => {
+                            if (!root.pointerMoved(mouseArea, mouse.x, mouse.y) || resultsList.isScrolling)
                                 return;
                             if (appLauncher.expandedItemIndex === -1) {
                                 GlobalStates.launcherSelectedIndex = index;
@@ -647,7 +671,8 @@ Item {
                                 mipmap: true
                                 id: appIconImage
                                 anchors.fill: parent
-                                source: "image://icon/" + appIcon
+                                sourceSize: Qt.size(32, 32)
+                                source: Quickshell.iconPath(appIcon, "application-x-executable")
                                 fillMode: Image.PreserveAspectFit
                                 
                                 onStatusChanged: {
@@ -888,11 +913,15 @@ Item {
                                         }
 
                                         MouseArea {
+                                            id: optionMouseArea
                                             anchors.fill: parent
                                             hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
 
-                                            onEntered: {
+                                            onEntered: root.rememberPointer(optionMouseArea, mouseX, mouseY)
+                                            onPositionChanged: mouse => {
+                                                if (!root.pointerMoved(optionMouseArea, mouse.x, mouse.y))
+                                                    return;
                                                 optionsListView.currentIndex = index;
                                                 appLauncher.selectedOptionIndex = index;
                                                 appLauncher.keyboardNavigation = false;

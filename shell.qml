@@ -1,7 +1,7 @@
 //@ pragma UseQApplication
-//@ pragma ShellId nonchalant
-//@ pragma DataDir $BASE/nonchalant
-//@ pragma StateDir $BASE/nonchalant
+//@ pragma ShellId rebos_shell
+//@ pragma DataDir $BASE/rebos_shell
+//@ pragma StateDir $BASE/rebos_shell
 
 import QtQuick
 import Quickshell
@@ -17,6 +17,8 @@ import qs.config
 
 ShellRoot {
     id: root
+
+    AnimeMenu {}
 
     // Keep the inherited wallpaper owner: it also provides the wallpaper
     // manager used by the lockscreen.
@@ -58,16 +60,13 @@ ShellRoot {
                 barOuterMargin: unifiedPanel.barOuterMargin
                 barPosition: Config.bar?.position ?? "top"
 
-
-                sidebarEnabled: GlobalStates.assistantAvailable
-                    && GlobalStates.assistantVisible
-                    && screenShellContainer.modelData.name === GlobalStates.assistantScreenName
-                sidebarPinned: GlobalStates.assistantPinned
-                sidebarWidth: GlobalStates.assistantWidth
-                sidebarPosition: GlobalStates.assistantPosition
             }
 
             // Volume / mic / brightness OSD for keyboard media keys (standard bar only; island bar embeds its own OSD)
+            LockKeyOSD {
+                targetScreen: screenShellContainer.modelData
+            }
+
             Loader {
                 active: Config.barReady ? (Config.bar?.style ?? "default") !== "island" : false
                 sourceComponent: OSD {
@@ -109,15 +108,14 @@ ShellRoot {
                 _ = LockscreenService.prepActive;
                 // Keep compositor + OSD services hot for overview hide and media keys.
                 _ = NiriService.overviewOpen;
+                _ = DesktopBlur.appliedMode;
                 _ = Audio.value;
                 _ = AudioFormat.connected;
                 _ = Brightness.monitors;
                 // Own org.freedesktop.Notifications and load history early.
                 _ = Notifications.appNameList;
                 _ = StateService.initialized;
-                // ACP agents remain entirely idle when the AI feature is off.
-                if (Config.ai?.enabled ?? true)
-                    _ = Ai.models;
+                // Assistant sessions belong to the separate assistant application.
             });
         }
 

@@ -130,8 +130,8 @@ Item {
                 scale: clockDateMouse.pressed ? 0.94 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: clockDateMouse.pressed ? 80 : 250
-                        easing.type: clockDateMouse.pressed ? Easing.OutQuad : Easing.OutBack
+                        duration: clockDateMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                         easing.overshoot: 1.4
                     }
                 }
@@ -152,7 +152,7 @@ Item {
                         color: clockDateMouse.containsMouse ? Colors.primary : Colors.overBackground
 
                         Behavior on color {
-                            ColorAnimation { duration: 150 }
+                            ColorAnimation { duration: Motion.feedback }
                         }
 
                         Timer {
@@ -175,7 +175,7 @@ Item {
                         elide: Text.ElideRight
 
                         Behavior on color {
-                            ColorAnimation { duration: 150 }
+                            ColorAnimation { duration: Motion.feedback }
                         }
                     }
                 }
@@ -206,9 +206,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: weatherMouse.pressed ? 80 : 250
-                        easing.type: weatherMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: weatherMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -229,7 +228,9 @@ Item {
                     Text {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
-                        text: (WeatherService.currentTemp > 0 ? Math.round(WeatherService.currentTemp) + "°C" : "24°C")
+                        text: WeatherService.dataAvailable
+                            ? Math.round(WeatherService.currentTemp) + "°" + Config.weather.unit
+                            : "--°" + Config.weather.unit
                         font.family: Config.theme.font
                         font.pixelSize: Styling.fontSize(-1)
                         font.bold: true
@@ -242,7 +243,18 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.openWeather()
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => {
+                        if (mouse.button === Qt.RightButton)
+                            WeatherService.updateWeather();
+                        else
+                            root.openWeather();
+                    }
+                }
+                StyledToolTip {
+                    show: weatherMouse.containsMouse
+                    tooltipText: "Weather"
+                    description: "Click for forecast · Right-click to refresh"
                 }
             }
 
@@ -256,9 +268,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: alertsMouse.pressed ? 80 : 250
-                        easing.type: alertsMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: alertsMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -316,9 +327,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: settingsMouse.pressed ? 80 : 250
-                        easing.type: settingsMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: settingsMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -354,9 +364,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: powerMouse.pressed ? 80 : 250
-                        easing.type: powerMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: powerMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -401,8 +410,7 @@ Item {
                 Behavior on scale {
                     NumberAnimation {
                         duration: (wifiMouse.pressed || wifiIconMouse.pressed) ? 80 : 250
-                        easing.type: (wifiMouse.pressed || wifiIconMouse.pressed) ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        easing.type: (wifiMouse.pressed || wifiIconMouse.pressed) ? Easing.OutQuad : Motion.enterCurve
                     }
                 }
 
@@ -412,7 +420,7 @@ Item {
                     anchors.rightMargin: 16
                     spacing: 12
 
-                    // Left: Icon (click toggles Wi-Fi)
+                    // Both halves open the menu; right-click toggles Wi-Fi.
                     Item {
                         implicitWidth: 26
                         implicitHeight: 26
@@ -437,15 +445,21 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Visibilities.closeActiveBarPopup();
-                                NetworkService.toggleWifi();
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton) {
+                                    Visibilities.closeActiveBarPopup();
+                                    NetworkService.toggleWifi();
+                                } else {
+                                    root.openWifi();
+                                }
                             }
                         }
 
                         StyledToolTip {
                             show: wifiIconMouse.containsMouse
-                            tooltipText: NetworkService.wifiEnabled ? (NetworkService.vpnConnected ? ("Wi-Fi On (VPN: " + (NetworkService.vpnName || "Active") + ") - Click to disable") : "Wi-Fi On - Click to disable") : "Wi-Fi Off - Click to enable"
+                            tooltipText: "Wi-Fi"
+                            description: "Click for networks · Right-click to toggle Wi-Fi"
                         }
                     }
 
@@ -454,7 +468,7 @@ Item {
                         Layout.preferredWidth: 1
                         Layout.preferredHeight: 22
                         Layout.alignment: Qt.AlignVCenter
-                        color: NetworkService.wifiEnabled ? Qt.rgba(0, 0, 0, 0.18) : Qt.rgba(1, 1, 1, 0.15)
+                        color: NetworkService.wifiEnabled ? Styling.withOpacity(Colors.overPrimary, 0.18) : Styling.withOpacity(Colors.overSurface, 0.15)
                     }
 
                     // Right: Text (click opens Wi-Fi panel)
@@ -481,7 +495,13 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.openWifi()
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton)
+                                    NetworkService.toggleWifi();
+                                else
+                                    root.openWifi();
+                            }
                         }
 
                         StyledToolTip {
@@ -505,8 +525,7 @@ Item {
                 Behavior on scale {
                     NumberAnimation {
                         duration: (btMouse.pressed || btIconMouse.pressed) ? 80 : 250
-                        easing.type: (btMouse.pressed || btIconMouse.pressed) ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        easing.type: (btMouse.pressed || btIconMouse.pressed) ? Easing.OutQuad : Motion.enterCurve
                     }
                 }
 
@@ -516,7 +535,7 @@ Item {
                     anchors.rightMargin: 16
                     spacing: 12
 
-                    // Left: Icon (click toggles Bluetooth)
+                    // Both halves open the menu; right-click toggles Bluetooth.
                     Item {
                         implicitWidth: 26
                         implicitHeight: 26
@@ -537,11 +556,22 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Visibilities.closeActiveBarPopup();
-                                BluetoothService.toggle();
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton) {
+                                    Visibilities.closeActiveBarPopup();
+                                    BluetoothService.toggle();
+                                } else {
+                                    root.openBluetooth();
+                                }
                             }
                         }
+                        StyledToolTip {
+                            show: btIconMouse.containsMouse
+                            tooltipText: "Bluetooth"
+                            description: "Click for devices · Right-click to toggle Bluetooth"
+                        }
+
                     }
 
                     // Middle: Divider
@@ -549,7 +579,7 @@ Item {
                         Layout.preferredWidth: 1
                         Layout.preferredHeight: 22
                         Layout.alignment: Qt.AlignVCenter
-                        color: BluetoothService.enabled ? Qt.rgba(0, 0, 0, 0.18) : Qt.rgba(1, 1, 1, 0.15)
+                        color: BluetoothService.enabled ? Styling.withOpacity(Colors.overPrimary, 0.18) : Styling.withOpacity(Colors.overSurface, 0.15)
                     }
 
                     // Right: Text (click opens Bluetooth panel)
@@ -576,8 +606,20 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.openBluetooth()
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.RightButton)
+                                    BluetoothService.toggle();
+                                else
+                                    root.openBluetooth();
+                            }
                         }
+                        StyledToolTip {
+                            show: btMouse.containsMouse
+                            tooltipText: "Bluetooth"
+                            description: "Click for devices · Right-click to toggle Bluetooth"
+                        }
+
                     }
                 }
             }
@@ -601,6 +643,7 @@ Item {
                 icon: root.audioMuted ? Icons.speakerSlash : (root.audioVolume > 0.5 ? Icons.speakerHigh : (root.audioVolume > 0 ? Icons.speakerLow : Icons.speakerSlash))
                 iconColor: root.audioMuted ? Colors.error : Colors.overBackground
                 tooltipText: (root.audioMuted ? "Muted " : "Volume ") + Math.round(root.audioVolume * 100) + "%"
+                tooltipDescription: "Click for sound · Right-click to mute"
                 onClicked: (mouse) => {
                     if (mouse.button === Qt.RightButton) {
                         Audio.toggleMute();
@@ -625,6 +668,7 @@ Item {
                 icon: micMuted ? Icons.micSlash : Icons.mic
                 iconColor: micMuted ? Colors.error : Colors.overBackground
                 tooltipText: (micMuted ? "Mic Muted " : "Mic ") + Math.round(micVol * 100) + "%"
+                tooltipDescription: "Click for microphone · Right-click to mute"
                 onClicked: (mouse) => {
                     if (mouse.button === Qt.RightButton) {
                         Audio.toggleMicMute();
@@ -657,9 +701,14 @@ Item {
                 icon: Notifications.silent ? Icons.bellSlash : Icons.bell
                 iconColor: Notifications.silent ? Colors.overPrimary : Colors.overBackground
                 tooltipText: Notifications.silent ? "Do Not Disturb: On" : "Do Not Disturb: Off"
+                tooltipDescription: "Click for notifications · Right-click to toggle Do Not Disturb"
                 onClicked: (mouse) => {
-                    Visibilities.closeActiveBarPopup();
-                    Notifications.toggleSilent();
+                    if (mouse.button === Qt.RightButton) {
+                        Visibilities.closeActiveBarPopup();
+                        Notifications.toggleSilent();
+                    } else {
+                        root.openAlerts();
+                    }
                 }
             }
 
@@ -784,7 +833,7 @@ Item {
                             NightLightService.toggle();
                         }
                         onWheel: wheel => {
-                            if (!NightLightService.active) {
+                            if (!NightLightService.desiredActive) {
                                 NightLightService.toggle();
                             }
                             const step = 100;

@@ -14,7 +14,7 @@ import qs.config
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
@@ -42,6 +42,7 @@ Item {
                     width: root.contentWidth
                     anchors.horizontalCenter: parent.horizontalCenter
                     title: "Sound"
+            description: "Choose audio devices and adjust volume."
 
                     actions: [
                         {
@@ -60,106 +61,7 @@ Item {
                         }
                     ]
 
-                    // Output/Input toggle buttons
-                    RowLayout {
-                        spacing: 4
 
-                        // Output Button
-                        StyledRect {
-                            id: outputBtn
-                            property bool isSelected: root.showOutput
-                            property bool isHovered: false
-
-                            variant: isSelected ? "primary" : (isHovered ? "focus" : "common")
-                            Layout.preferredHeight: 32
-                            Layout.preferredWidth: outputContent.width + 24
-                            radius: isSelected ? Styling.radius(-4) : Styling.radius(0)
-
-                            Row {
-                                id: outputContent
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: Icons.speakerHigh
-                                    font.family: Icons.font
-                                    font.pixelSize: 14
-                                    color: outputBtn.item
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: "Output"
-                                    font.family: Config.theme.font
-                                    font.pixelSize: Styling.fontSize(-1)
-                                    font.weight: Font.Medium
-                                    color: outputBtn.item
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onEntered: outputBtn.isHovered = true
-                                onExited: outputBtn.isHovered = false
-                                onClicked: root.showOutput = true
-                            }
-                        }
-
-                        // Input Button
-                        StyledRect {
-                            id: inputBtn
-                            property bool isSelected: !root.showOutput
-                            property bool isHovered: false
-
-                            variant: isSelected ? "primary" : (isHovered ? "focus" : "common")
-                            Layout.preferredHeight: 32
-                            Layout.preferredWidth: inputContent.width + 24
-                            radius: isSelected ? Styling.radius(-4) : Styling.radius(0)
-
-                            Row {
-                                id: inputContent
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: Icons.mic
-                                    font.family: Icons.font
-                                    font.pixelSize: 14
-                                    color: inputBtn.item
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-
-                                Text {
-                                    renderType: Text.NativeRendering
-                                    font.hintingPreference: Font.PreferFullHinting
-                                    text: "Input"
-                                    font.family: Config.theme.font
-                                    font.pixelSize: Styling.fontSize(-1)
-                                    font.weight: Font.Medium
-                                    color: inputBtn.item
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onEntered: inputBtn.isHovered = true
-                                onExited: inputBtn.isHovered = false
-                                onClicked: root.showOutput = false
-                            }
-                        }
-                    }
                 }
             }
 
@@ -172,10 +74,31 @@ Item {
                     id: innerContent
                     width: root.contentWidth
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 8
+                    spacing: 12
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: root.contentWidth < Styling.fontSize(0) * 30 ? 1 : 2
+                        columnSpacing: 12
+                        rowSpacing: 12
+                        SettingsSectionCard {
+                            text: "Output"
+                            description: "Speakers and headphones."
+                            glyph: Icons.speakerHigh
+                            selected: root.showOutput
+                            onClicked: root.showOutput = true
+                        }
+                        SettingsSectionCard {
+                            text: "Input"
+                            description: "Microphones and recording."
+                            glyph: Icons.mic
+                            selected: !root.showOutput
+                            onClicked: root.showOutput = false
+                        }
+                    }
 
                     // Section: Devices
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         text: root.showOutput ? "Output Device" : "Input Device"
@@ -212,7 +135,7 @@ Item {
                     }
 
                     // Section: Volume Mixer
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         text: "Volume Mixer"
@@ -243,7 +166,7 @@ Item {
                     }
 
                     // Empty state for apps
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         visible: (root.showOutput ? Audio.outputAppNodes : Audio.inputAppNodes).length === 0

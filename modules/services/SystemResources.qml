@@ -13,6 +13,91 @@ pragma ComponentBehavior: Bound
 Singleton {
     id: root
 
+    property string detailMetric: ""
+    property string detailTitle: ""
+    property list<var> processes: []
+    property list<string> gpuPciIds: []
+    property var windowInfo: ({})
+    property bool pickingWindow: false
+    property string pickerOutput: ""
+    property bool windowActionBusy: false
+    property bool windowKilled: false
+    property string windowActionMessage: ""
+    property string windowActionOutput: ""
+
+    function controlWindow(action: string) {
+        if (windowActionBusy || pickingWindow || windowKilled || !windowInfo.window) return;
+        const w = windowInfo.window;
+        windowActionMessage = "";
+        windowActionOutput = "";
+        windowActionProcess.command = ["python3", Quickshell.shellDir + "/scripts/process_monitor.py", "--window-action",
+            action, String(w.id), String(w.pid ?? 0), String(windowInfo.process?.start ?? "")];
+        windowActionBusy = true;
+        windowActionProcess.running = true;
+    }
+
+    Process {
+        id: windowActionProcess
+        stdout: StdioCollector { onStreamFinished: root.windowActionOutput = text }
+        onExited: {
+            try {
+                const result = JSON.parse(root.windowActionOutput);
+                root.windowActionMessage = result.error ?? result.message ?? "Action finished.";
+                root.windowKilled = result.killed ?? false;
+            } catch (e) { root.windowActionMessage = "Could not control this window."; }
+            root.windowActionBusy = false;
+        }
+    }
+
+    readonly property bool keepMonitorOpen: GlobalStates.systemMonitorOpen && (pickingWindow || detailMetric === "window")
+
+    function showProcesses(metric: string, title: string) {
+        detailTitle = title;
+        detailMetric = metric;
+    }
+
+    function pickWindow() {
+        if (pickingWindow || windowActionBusy) return;
+        windowKilled = false;
+        windowActionMessage = "";
+        pickingWindow = true;
+        windowInfo = ({});
+        detailMetric = "window";
+        detailTitle = "Window information";
+        pickerOutput = "";
+        pickerDelay.restart();
+    }
+
+    Timer {
+        id: pickerDelay
+        interval: 350
+        onTriggered: windowPicker.running = true
+    }
+
+    Process {
+        id: windowPicker
+        command: ["python3", Quickshell.shellDir + "/scripts/process_monitor.py", "--pick-window"]
+        stdout: StdioCollector { onStreamFinished: root.pickerOutput = text }
+        onExited: {
+            try { root.windowInfo = JSON.parse(root.pickerOutput); }
+            catch (e) { root.windowInfo = ({error: "Could not read window information."}); }
+            root.pickingWindow = false;
+        }
+    }
+
+    Process {
+        command: ["python3", Quickshell.shellDir + "/scripts/process_monitor.py"]
+        running: GlobalStates.systemMonitorOpen && root.detailMetric !== "" && root.detailMetric !== "window"
+        stdout: SplitParser {
+            onRead: data => {
+                try {
+                    const rows = JSON.parse(data);
+                    Qt.callLater(() => { root.processes = rows; });
+                } catch (e) { console.warn("Process monitor: invalid sample"); }
+            }
+        }
+    }
+
     // CPU metrics
     property real cpuUsage: 0.0
     property string cpuModel: ""
@@ -77,6 +162,7 @@ Singleton {
                     if (stats.static) {
                         root.cpuModel = stats.static.cpu_model || root.cpuModel;
                         root.gpuNames = stats.static.gpu_names || [];
+                        root.gpuPciIds = stats.static.gpu_pci_ids || [];
                         root.gpuVendors = stats.static.gpu_vendors || [];
                         root.gpuDrivers = stats.static.gpu_drivers || [];
                         root.gpuCount = stats.static.gpu_count || 0;

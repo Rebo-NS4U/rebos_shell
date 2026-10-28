@@ -42,9 +42,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -109,9 +108,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: globeMouse.pressed ? 80 : 250
-                        easing.type: globeMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: globeMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -153,9 +151,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: settingsMouse.pressed ? 80 : 250
-                        easing.type: settingsMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: settingsMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -194,9 +191,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: rescanMouse.pressed ? 80 : 250
-                        easing.type: rescanMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: rescanMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -252,7 +248,7 @@ Item {
 
                     Behavior on color {
                         enabled: Config.animDuration > 0
-                        ColorAnimation { duration: 150 }
+                        ColorAnimation { duration: Motion.feedback }
                     }
 
                     Rectangle {
@@ -266,7 +262,7 @@ Item {
                         Behavior on x {
                             enabled: Config.animDuration > 0
                             NumberAnimation {
-                                duration: 150
+                                duration: Motion.feedback
                                 easing.type: Easing.OutCubic
                             }
                         }

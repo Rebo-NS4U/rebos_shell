@@ -131,29 +131,17 @@ QtObject {
                 echo "${escape(jsonContent)}" > "${walDir}/colors.json"
                 echo "${escape(shContent)}" > "${walDir}/colors.sh"
                 echo "${image}" > "${walDir}/wal"
-                pywalfox update &
-                walogram -B > /dev/null 2>&1 &
+                if command -v pywalfox >/dev/null 2>&1; then pywalfox update; fi
+                if command -v walogram >/dev/null 2>&1; then walogram -B > /dev/null 2>&1; fi
             `
             
             // console.log("PywalGenerator: Executing command:\n", cmd)
-            writerProcess.command = ["sh", "-c", cmd]
-            writerProcess.running = true
+            writerProcess.submit(["sh", "-c", cmd]);
             
         } catch (e) {
             console.error("PywalGenerator: Critical error in generate:", e)
         }
     }
 
-    property Process writerProcess: Process {
-        id: writerProcess
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: console.log("PywalGenerator: Colors generated.")
-        }
-        stderr: StdioCollector {
-            onStreamFinished: (err) => {
-                if (err) console.error("PywalGenerator Error:", err)
-            }
-        }
-    }
+    property ThemeWriter writerProcess: ThemeWriter {}
 }

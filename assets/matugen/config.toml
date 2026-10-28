@@ -1,6 +1,6 @@
-[templates.nonchalant]
+[templates.rebos_shell]
 input_path = "colors.json"
-output_path = "~/.cache/nonchalant/colors.json"
+output_path = "~/.cache/rebos_shell/colors.json"
 
 [config.custom_colors.red]
 color = "#FF0000"

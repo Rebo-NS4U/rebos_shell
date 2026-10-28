@@ -148,14 +148,35 @@ test("F1-FULLOBJ-4: Null or non-object input cleanly resets to bar defaults", ()
 });
 
 // Group 4: Preset Integrity
-test("F1-PRESET-1: Nonchalant Default preset bar.json validates cleanly", () => {
-    const presetPath = path.resolve(__dirname, "../../assets/presets/Nonchalant Default/bar.json");
+test("F1-PRESET-1: rebos_shell Default preset bar.json validates cleanly", () => {
+    const presetPath = path.resolve(__dirname, "../../assets/presets/rebos_shell Default/bar.json");
     assert(fs.existsSync(presetPath), "Preset file must exist");
     const content = fs.readFileSync(presetPath, "utf8");
     const parsed = JSON.parse(content);
     const validated = validator.validate(parsed, barDefaults.data, "bar");
     assert.strictEqual(validated.style, "default");
     assert.strictEqual(validated.position, "top");
+});
+
+test("Appearance defaults migrate existing configurations without changing other keys", () => {
+    const result = validator.validate({ style: "island", pinned: true, use12hFormat: true }, barDefaults.data, "bar");
+    assert.strictEqual(result.islandAppearance, "glass");
+    assert.strictEqual(result.islandOpacity, 80);
+    assert.strictEqual(result.islandAccent, 55);
+    assert.strictEqual(result.pinned, true);
+    assert.strictEqual(result.use12hFormat, true);
+});
+
+test("Appearance validates presets and bounds percentage settings", () => {
+    assert.strictEqual(validator.validate("classic", "glass", "islandAppearance"), "classic");
+    assert.strictEqual(validator.validate("invalid", "glass", "islandAppearance"), "glass");
+    assert.strictEqual(validator.validate(-10, 80, "islandOpacity"), 20);
+    assert.strictEqual(validator.validate(120, 80, "islandOpacity"), 100);
+    assert.strictEqual(validator.validate(77.7, 80, "islandOpacity"), 78);
+    assert.strictEqual(validator.validate(-1, 55, "islandAccent"), 0);
+    assert.strictEqual(validator.validate(1000, 55, "islandAccent"), 100);
+    assert.strictEqual(validator.validate(NaN, 80, "islandOpacity"), 80);
+    assert.strictEqual(validator.validate("50", 55, "islandAccent"), 55);
 });
 
 console.log(`\nSchema Tests Summary: ${passed} passed, ${failed} failed.`);

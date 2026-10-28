@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Lockscreen Wallpaper Frame Extractor for Nonchalant
+Lockscreen Wallpaper Frame Extractor for rebos_shell
 Extracts first frame from video/GIF wallpapers for lockscreen background.
 Only processes video and GIF files - skips regular images.
 """
@@ -104,7 +104,7 @@ class LockscreenWallpaperGenerator:
 
     def run(self) -> int:
         """Main execution function."""
-        print("🔒 Nonchalant Lockscreen Wallpaper Generator")
+        print("🔒 rebos_shell Lockscreen Wallpaper Generator")
         print("=" * 40)
 
         # Validate wallpaper

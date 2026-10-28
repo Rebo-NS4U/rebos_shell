@@ -6,6 +6,9 @@ var data = {
     "screenList": [],
     "enableFirefoxPlayer": false,
     "use12hFormat": false,
-    "pinned": false
+    "pinned": false,
+    "islandAppearance": "glass",
+    "islandOpacity": 80,
+    "islandAccent": 55
 }
 

@@ -2,6 +2,12 @@
 
 var data = {
     "oledMode": false,
+    "shellStyle": "glass",
+    "ditherPalette": "original",
+    "ditherTintColor": "#4c9cbd",
+    "ditherBorder": "band",
+    "wallpaperDitherStrength": "strong",
+    "ditherStrength": 20,
     "lightMode": false,
     "roundness": 16,
     "font": "JetBrains Mono",
@@ -68,7 +74,7 @@ var data = {
     },
     "srBarBg": {
         "label": "Bar BG",
-        "gradient": [["surfaceDim", 0.0]],
+        "gradient": [["background", 0.0]],
         "gradientType": "linear",
         "gradientAngle": 0,
         "gradientCenterX": 0.5,
@@ -78,7 +84,7 @@ var data = {
         "halftoneStart": 0.0,
         "halftoneEnd": 1.0,
         "halftoneDotColor": "surface",
-        "halftoneBackgroundColor": "surfaceDim",
+        "halftoneBackgroundColor": "background",
         "border": ["surfaceBright", 0],
         "itemColor": "overBackground",
         "opacity": 0.0

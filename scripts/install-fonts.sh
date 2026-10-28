@@ -3,7 +3,7 @@
 set -euo pipefail
 
 font_root="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
-shell_font_dir="$font_root/nonchalant"
+shell_font_dir="$font_root/rebos_shell"
 phosphor_font_dir="$font_root/phosphor"
 
 has_font_family() {
@@ -13,7 +13,7 @@ has_font_family() {
 mkdir -p "$shell_font_dir" "$phosphor_font_dir"
 
 if ! has_font_family "Phosphor-Bold"; then
-    phosphor_archive="$(mktemp "${TMPDIR:-/tmp}/nonchalant-phosphor.XXXXXX.zip")"
+    phosphor_archive="$(mktemp "${TMPDIR:-/tmp}/rebos_shell-phosphor.XXXXXX.zip")"
     trap 'unlink "$phosphor_archive" 2>/dev/null || true' EXIT
 
     curl --fail --location --silent --show-error \
@@ -24,7 +24,7 @@ fi
 
 # Official JetBrains Mono (family name: "JetBrains Mono")
 if ! has_font_family "JetBrains Mono"; then
-    jb_archive="$(mktemp "${TMPDIR:-/tmp}/nonchalant-jetbrains.XXXXXX.zip")"
+    jb_archive="$(mktemp "${TMPDIR:-/tmp}/rebos_shell-jetbrains.XXXXXX.zip")"
     # shellcheck disable=SC2064
     trap 'unlink "$jb_archive" 2>/dev/null || true' EXIT
 
@@ -42,7 +42,7 @@ fi
 
 fc-cache -f "$font_root"
 
-printf 'Nonchalant fonts are ready:\n'
+printf 'rebos_shell fonts are ready:\n'
 fc-match ':family=Phosphor-Bold'
 fc-match ':family=JetBrains Mono'
 fc-match ':family=League Gothic'

@@ -6,12 +6,10 @@ import qs.modules.components
 import qs.modules.services
 import qs.config
 
-Rectangle {
+Item {
     id: root
-
-    color: "transparent"
-    implicitWidth: 250
-    implicitHeight: resourcesColumn.implicitHeight
+    implicitWidth: SystemResources.detailMetric === "" ? 250 : 400
+    implicitHeight: body.implicitHeight
 
     readonly property string networkLabel: {
         if (NetworkService.active && NetworkService.active.ssid)
@@ -90,19 +88,6 @@ Rectangle {
         return details.join(" · ");
     }
 
-    function gpuColor(vendor) {
-        switch ((vendor || "").toLowerCase()) {
-        case "nvidia":
-            return Colors.green;
-        case "amd":
-            return Colors.red;
-        case "intel":
-            return Colors.blue;
-        default:
-            return Colors.magenta;
-        }
-    }
-
     function gpuName(index) {
         const name = SystemResources.gpuNames[index] || "";
         if (name)
@@ -121,7 +106,7 @@ Rectangle {
         required property string primaryText
         required property string secondaryText
         property int temperature: -1
-        property color accentColor: Colors.red
+        property color accentColor: Colors.secondary
 
         width: parent ? parent.width : implicitWidth
         spacing: 4
@@ -177,201 +162,239 @@ Rectangle {
     }
 
     Column {
-        id: resourcesColumn
-
+        id: body
         width: parent.width
-        spacing: 12
-
-        Column {
+        spacing: 10
+        MetricAction {
             width: parent.width
-            spacing: 4
-
-            ResourceItem {
-                width: parent.width
-                icon: Icons.cpu
-                label: SystemResources.cpuModel || "CPU"
-                barColor: Colors.red
-            }
-
-            DetailRow {
-                primaryText: root.formatFrequency(SystemResources.cpuFrequency)
-                secondaryText: `${Math.round(SystemResources.cpuUsage)}%`
-                temperature: SystemResources.cpuTemp
-                accentColor: Colors.red
-            }
+            text: SystemResources.pickingWindow ? "Selecting window…" : "Pick window on screen"
+            enabled: !SystemResources.pickingWindow && !SystemResources.windowActionBusy
+            onClicked: SystemResources.pickWindow()
         }
-
-        Column {
+        StyledText {
             width: parent.width
-            spacing: 4
-
-            ResourceItem {
-                width: parent.width
-                icon: Icons.ram
-                label: "RAM"
-                barColor: Colors.cyan
-            }
-
-            DetailRow {
-                primaryText: {
-                    const usedGB = (SystemResources.ramUsed / 1024 / 1024).toFixed(1);
-                    const totalGB = (SystemResources.ramTotal / 1024 / 1024).toFixed(1);
-                    return `${usedGB} GB / ${totalGB} GB`;
-                }
-                secondaryText: `${Math.round(SystemResources.ramUsage)}%`
-            }
+            visible: SystemResources.detailMetric === ""
+            text: "Click a stat to see processes"
+            color: Colors.overSurfaceVariant
+            font.pixelSize: Styling.fontSize(-3)
         }
+        Loader {
+            width: parent.width
+            active: SystemResources.detailMetric !== ""
+            // An unloaded Loader can retain its last height. Exclude it from layout.
+            visible: active
+            sourceComponent: SystemResources.detailMetric === "window" ? windowDetails : processDetails
+        }
+        Component { id: windowDetails; WindowDetails { } }
+        Component { id: processDetails; ProcessDetails { } }
+        Column {
+            id: resourcesColumn
+            visible: SystemResources.detailMetric === ""
 
-        Repeater {
-            model: SystemResources.gpuDetected ? SystemResources.gpuCount : 0
+            width: parent.width
+            spacing: 12
 
             Column {
-                id: gpuColumn
-
-                required property int index
-                readonly property string driver: SystemResources.gpuDrivers[index] || "none"
-                readonly property bool toVfio: driver === "vfio-pci"
-                readonly property color accentColor: root.gpuColor(SystemResources.gpuVendors[index])
-
                 width: parent.width
                 spacing: 4
 
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: SystemResources.showProcesses("cpu", "CPU processes") }
                 ResourceItem {
                     width: parent.width
-                    icon: Icons.gpu
-                    label: root.gpuName(gpuColumn.index)
-                    barColor: gpuColumn.accentColor
+                    icon: Icons.cpu
+                    label: SystemResources.cpuModel || "CPU"
+                    barColor: Colors.primary
                 }
 
                 DetailRow {
-                    primaryText: root.gpuDetails(gpuColumn.index, gpuColumn.toVfio)
-                    secondaryText: gpuColumn.toVfio ? "To VFIO" : `${Math.round(SystemResources.gpuUsages[gpuColumn.index] || 0)}%`
-                    temperature: gpuColumn.toVfio ? -1 : (SystemResources.gpuTemps[gpuColumn.index] ?? -1)
-                    accentColor: gpuColumn.accentColor
+                    primaryText: root.formatFrequency(SystemResources.cpuFrequency)
+                    secondaryText: `${Math.round(SystemResources.cpuUsage)}%`
+                    temperature: SystemResources.cpuTemp
+                    accentColor: Colors.secondary
                 }
             }
-        }
-
-        Repeater {
-            model: SystemResources.validDisks
 
             Column {
-                id: diskColumn
-
-                required property string modelData
                 width: parent.width
                 spacing: 4
 
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: SystemResources.showProcesses("ram", "Memory processes") }
                 ResourceItem {
                     width: parent.width
-                    icon: {
-                        const diskType = SystemResources.diskTypes[diskColumn.modelData] || "unknown";
-                        switch (diskType) {
-                        case "ssd":
-                            return Icons.ssd;
-                        case "hdd":
-                            return Icons.hdd;
-                        default:
-                            return Icons.disk;
-                        }
+                    icon: Icons.ram
+                    label: "RAM"
+                    barColor: Colors.primary
+                }
+
+                DetailRow {
+                    primaryText: {
+                        const usedGB = (SystemResources.ramUsed / 1024 / 1024).toFixed(1);
+                        const totalGB = (SystemResources.ramTotal / 1024 / 1024).toFixed(1);
+                        return `${usedGB} GB / ${totalGB} GB`;
                     }
-                    label: diskColumn.modelData
-                    barColor: Colors.yellow
-                }
-
-                DetailRow {
-                    primaryText: root.formatStoragePair(SystemResources.diskUsed[diskColumn.modelData], SystemResources.diskTotal[diskColumn.modelData])
-                    secondaryText: `${Math.round(SystemResources.diskUsage[diskColumn.modelData] || 0)}%`
+                    secondaryText: `${Math.round(SystemResources.ramUsage)}%`
                 }
             }
-        }
 
-        Column {
-            width: parent.width
-            spacing: 4
+            Repeater {
+                model: SystemResources.gpuDetected ? SystemResources.gpuCount : 0
 
-            ResourceItem {
-                width: parent.width
-                icon: root.networkIcon
-                label: root.networkLabel
-                barColor: Colors.cyan
+                Column {
+                    id: gpuColumn
+
+                    required property int index
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: SystemResources.showProcesses("gpu:" + (SystemResources.gpuPciIds[gpuColumn.index] ?? ""), root.gpuName(gpuColumn.index) + " processes") }
+                    readonly property string driver: SystemResources.gpuDrivers[index] || "none"
+                    readonly property bool toVfio: driver === "vfio-pci"
+                    readonly property color accentColor: Colors.primary
+
+                    width: parent.width
+                    spacing: 4
+
+                    ResourceItem {
+                        width: parent.width
+                        icon: Icons.gpu
+                        label: root.gpuName(gpuColumn.index)
+                        barColor: gpuColumn.accentColor
+                    }
+
+                    DetailRow {
+                        primaryText: root.gpuDetails(gpuColumn.index, gpuColumn.toVfio)
+                        secondaryText: gpuColumn.toVfio ? "To VFIO" : `${Math.round(SystemResources.gpuUsages[gpuColumn.index] || 0)}%`
+                        temperature: gpuColumn.toVfio ? -1 : (SystemResources.gpuTemps[gpuColumn.index] ?? -1)
+                        accentColor: Colors.secondary
+                    }
+                }
             }
 
-            RowLayout {
+            Repeater {
+                model: SystemResources.validDisks
+
+                Column {
+                    id: diskColumn
+
+                    required property string modelData
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: SystemResources.showProcesses("disk", "Disk activity · " + diskColumn.modelData) }
+                    width: parent.width
+                    spacing: 4
+
+                    ResourceItem {
+                        width: parent.width
+                        icon: {
+                            const diskType = SystemResources.diskTypes[diskColumn.modelData] || "unknown";
+                            switch (diskType) {
+                            case "ssd":
+                                return Icons.ssd;
+                            case "hdd":
+                                return Icons.hdd;
+                            default:
+                                return Icons.disk;
+                            }
+                        }
+                        label: diskColumn.modelData
+                        barColor: Colors.primary
+                    }
+
+                    DetailRow {
+                        primaryText: root.formatStoragePair(SystemResources.diskUsed[diskColumn.modelData], SystemResources.diskTotal[diskColumn.modelData])
+                        secondaryText: `${Math.round(SystemResources.diskUsage[diskColumn.modelData] || 0)}%`
+                    }
+                }
+            }
+
+            Column {
                 width: parent.width
                 spacing: 4
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: Icons.arrowUp
-                    font.family: Icons.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    color: Colors.red
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: SystemResources.showProcesses("network", "Network processes") }
+                ResourceItem {
+                    width: parent.width
+                    icon: root.networkIcon
+                    label: root.networkLabel
+                    barColor: Colors.primary
                 }
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: root.formatSpeed(SystemResources.networkUploadSpeed)
-                    font.family: Config.theme.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    font.weight: Font.Medium
-                    color: Colors.overBackground
-                }
+                RowLayout {
+                    width: parent.width
+                    spacing: 4
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: "/"
-                    font.family: Icons.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    color: Colors.overBackground
-                }
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: Icons.arrowUp
+                        font.family: Icons.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.primary
+                    }
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: Icons.arrowDown
-                    font.family: Icons.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    color: Colors.cyan
-                }
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: root.formatSpeed(SystemResources.networkUploadSpeed)
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        font.weight: Font.Medium
+                        color: Colors.overBackground
+                    }
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: root.formatSpeed(SystemResources.networkDownloadSpeed)
-                    font.family: Config.theme.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    font.weight: Font.Medium
-                    color: Colors.overBackground
-                }
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: "/"
+                        font.family: Icons.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    text: "Mb/s"
-                    font.family: Config.theme.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    font.weight: Font.Medium
-                    color: Colors.overBackground
-                }
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: Icons.arrowDown
+                        font.family: Icons.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.secondary
+                    }
 
-                Separator {
-                    Layout.preferredHeight: 2
-                    Layout.fillWidth: true
-                }
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: root.formatSpeed(SystemResources.networkDownloadSpeed)
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        font.weight: Font.Medium
+                        color: Colors.overBackground
+                    }
 
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    visible: NetworkService.wifiEnabled && !NetworkService.ethernet
-                    text: `${Math.round(NetworkService.networkStrength)}%`
-                    font.family: Config.theme.font
-                    font.pixelSize: Styling.fontSize(-2)
-                    font.weight: Font.Medium
-                    color: Colors.overBackground
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        text: "Mb/s"
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        font.weight: Font.Medium
+                        color: Colors.overBackground
+                    }
+
+                    Separator {
+                        Layout.preferredHeight: 2
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        renderType: Text.NativeRendering
+                        font.hintingPreference: Font.PreferFullHinting
+                        visible: NetworkService.wifiEnabled && !NetworkService.ethernet
+                        text: `${Math.round(NetworkService.networkStrength)}%`
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-2)
+                        font.weight: Font.Medium
+                        color: Colors.overBackground
+                    }
                 }
             }
         }

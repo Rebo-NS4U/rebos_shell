@@ -10,58 +10,16 @@ import qs.config
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
     property string currentSection: ""
 
-    component SectionButton: StyledRect {
-        id: sectionBtn
-        required property string text
+    component SectionButton: SettingsSectionCard {
         required property string sectionId
-
-        property bool isHovered: false
-
-        variant: isHovered ? "focus" : "pane"
-        Layout.fillWidth: true
-        Layout.preferredHeight: 56
-        radius: Styling.radius(0)
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 16
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: sectionBtn.text
-                font.family: Config.theme.font
-                font.pixelSize: Styling.fontSize(0)
-                font.bold: true
-                color: Colors.overBackground
-                Layout.fillWidth: true
-            }
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: Icons.caretRight
-                font.family: Icons.font
-                font.pixelSize: 20
-                color: Colors.overSurfaceVariant
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onEntered: sectionBtn.isHovered = true
-            onExited: sectionBtn.isHovered = false
-            onClicked: root.currentSection = sectionBtn.sectionId
-        }
+        objectName: "settings-section-" + sectionId
+        onClicked: root.currentSection = sectionId
     }
 
     // Main content
@@ -86,7 +44,8 @@ Item {
                     id: titlebar
                     width: root.contentWidth
                     anchors.horizontalCenter: parent.horizontalCenter
-                    title: root.currentSection === "" ? "System" : (root.currentSection === "system" ? "System Resources" : (root.currentSection.charAt(0).toUpperCase() + root.currentSection.slice(1)))
+                    title: ({weather: "Weather", performance: "Effects", system: "Storage"})[root.currentSection] || "System"
+                    description: root.currentSection === "" ? "Location, visual effects and monitored disks." : ""
                     statusText: ""
 
                     actions: {
@@ -120,21 +79,28 @@ Item {
                     // ═══════════════════════════════════════════════════════════════
                     // MENU SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    GridLayout {
                         visible: root.currentSection === ""
                         Layout.fillWidth: true
-                        spacing: 8
-
+                        columns: root.contentWidth < Styling.fontSize(0) * 30 ? 1 : 2
+                        columnSpacing: 12
+                        rowSpacing: 12
                         SectionButton {
                             text: "Weather"
+                            description: "Location and temperature units."
+                            glyph: Icons.mapPin
                             sectionId: "weather"
                         }
                         SectionButton {
-                            text: "Performance"
+                            text: "Effects"
+                            description: "Animations, previews and cover artwork."
+                            glyph: Icons.lightning
                             sectionId: "performance"
                         }
                         SectionButton {
-                            text: "System Resources"
+                            text: "Storage"
+                            description: "Disks shown in the system monitor."
+                            glyph: Icons.circuitry
                             sectionId: "system"
                         }
                     }
@@ -143,13 +109,12 @@ Item {
                     // =====================
                     // WEATHER SECTION
                     // =====================
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "weather"
                         property string settingsSection: "weather"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "Weather"
@@ -165,7 +130,7 @@ Item {
                             Layout.fillWidth: true
                             spacing: 8
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
                                 text: "Location"
@@ -210,7 +175,7 @@ Item {
                                         }
                                     }
 
-                                    Text {
+                                    StyledText {
                                         anchors.verticalCenter: parent.verticalCenter
                                         visible: !locationInput.text && !locationInput.activeFocus
                                         text: "e.g. Buenos Aires, Tokyo..."
@@ -226,10 +191,10 @@ Item {
                             Layout.fillWidth: true
                             spacing: 8
 
-                            Text {
+                            StyledText {
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
-                                text: "Unit"
+                                text: "Temperature unit"
                                 font.family: Config.theme.font
                                 font.pixelSize: Styling.fontSize(0)
                                 color: Colors.overBackground
@@ -264,7 +229,7 @@ Item {
                                         height: 36
                                         radius: Styling.radius(-2)
 
-                                        Text {
+                                        StyledText {
                                             renderType: Text.NativeRendering
                                             font.hintingPreference: Font.PreferFullHinting
                                             id: unitLabel
@@ -293,13 +258,12 @@ Item {
                     // =====================
                     // PERFORMANCE SECTION
                     // =====================
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "performance"
                         property string settingsSection: "performance"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "Performance"
@@ -310,10 +274,10 @@ Item {
                             Layout.bottomMargin: -4
                         }
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
-                            text: "Toggle visual effects to improve performance"
+                            text: "Choose which visual effects to use."
                             font.family: Config.theme.font
                             font.pixelSize: Styling.fontSize(-2)
                             color: Colors.overSurfaceVariant
@@ -368,16 +332,15 @@ Item {
                     // =====================
                     // SYSTEM SECTION
                     // =====================
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "system"
                         property string settingsSection: "system"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
-                            text: "System Resources"
+                            text: "Storage"
                             font.family: Config.theme.font
                             font.pixelSize: Styling.fontSize(-1)
                             font.weight: Font.Medium
@@ -385,10 +348,10 @@ Item {
                             Layout.bottomMargin: -4
                         }
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
-                            text: "Configure which disks to monitor"
+                            text: "Choose disks for the system monitor."
                             font.family: Config.theme.font
                             font.pixelSize: Styling.fontSize(-2)
                             color: Colors.overSurfaceVariant
@@ -440,7 +403,7 @@ Item {
                                                 }
                                             }
 
-                                            Text {
+                                            StyledText {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 visible: !diskInput.text && !diskInput.activeFocus
                                                 text: "e.g. /, /home..."
@@ -459,7 +422,7 @@ Item {
                                         radius: Styling.radius(-2)
                                         visible: disksRepeater.count > 1
 
-                                        Text {
+                                        StyledText {
                                             renderType: Text.NativeRendering
                                             font.hintingPreference: Font.PreferFullHinting
                                             anchors.centerIn: parent
@@ -502,7 +465,7 @@ Item {
                                     anchors.centerIn: parent
                                     spacing: 6
 
-                                    Text {
+                                    StyledText {
                                         renderType: Text.NativeRendering
                                         font.hintingPreference: Font.PreferFullHinting
                                         text: Icons.plus
@@ -512,7 +475,7 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
 
-                                    Text {
+                                    StyledText {
                                         renderType: Text.NativeRendering
                                         font.hintingPreference: Font.PreferFullHinting
                                         text: "Add Disk"
@@ -566,7 +529,7 @@ Item {
         Layout.fillWidth: true
         spacing: 8
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: numberInputRowRoot.label
@@ -619,7 +582,7 @@ Item {
             }
         }
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: numberInputRowRoot.suffix
@@ -641,7 +604,7 @@ Item {
         Layout.fillWidth: true
         spacing: 8
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: textInputRowRoot.label
@@ -679,7 +642,7 @@ Item {
                 }
                 Component.onCompleted: text = configValue
 
-                Text {
+                StyledText {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
                     text: textInputRowRoot.placeholder
@@ -699,91 +662,24 @@ Item {
 
     // ToggleRow component for boolean toggles
     component ToggleRow: RowLayout {
+        id: toggleRow
         property string label: ""
         property string description: ""
         property bool checked: false
         signal toggled(bool checked)
-
-        spacing: 8
-
+        spacing: 12
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: label
-                font.family: Config.theme.font
-                font.pixelSize: Styling.fontSize(0)
-                color: Colors.overBackground
-            }
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                visible: description !== ""
-                text: description
-                font.family: Config.theme.font
-                font.pixelSize: Styling.fontSize(-2)
+            StyledText { text: toggleRow.label; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+            StyledText {
+                visible: toggleRow.description.length > 0
+                text: toggleRow.description
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
                 color: Colors.overSurfaceVariant
-                opacity: 0.7
+                font.pixelSize: Styling.fontSize(-2)
             }
         }
-
-        // Checkbox used by toggle rows.
-        Item {
-            Layout.preferredWidth: 32
-            Layout.preferredHeight: 32
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Styling.radius(-4)
-                color: Colors.background
-                visible: !checked
-            }
-
-            StyledRect {
-                variant: "primary"
-                anchors.fill: parent
-                radius: Styling.radius(-4)
-                visible: checked
-                opacity: checked ? 1.0 : 0.0
-
-                Behavior on opacity {
-                    enabled: Config.animDuration > 0
-                    NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutQuart
-                    }
-                }
-
-                Text {
-                    renderType: Text.NativeRendering
-                    font.hintingPreference: Font.PreferFullHinting
-                    anchors.centerIn: parent
-                    text: Icons.accept
-                    color: Styling.srItem("primary")
-                    font.family: Icons.font
-                    font.pixelSize: 16
-                    scale: checked ? 1.0 : 0.0
-
-                    Behavior on scale {
-                        enabled: Config.animDuration > 0
-                        NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutBack
-                            easing.overshoot: 1.5
-                        }
-                    }
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: toggled(!checked)
-            }
-        }
+        StyledSwitch { checked: toggleRow.checked; onToggled: toggleRow.toggled(checked) }
     }
 }

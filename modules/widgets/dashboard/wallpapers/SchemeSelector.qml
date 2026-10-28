@@ -2,27 +2,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland._BackgroundEffect
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.modules.theme
 import qs.modules.components
 import qs.modules.globals
 import qs.config
+import "../../../theme/PaletteSchemes.js" as PaletteSchemes
 
 Item {
     id: root
     property bool schemeListExpanded: false
-    readonly property var matugenSchemes: [
-        "scheme-content",
-        "scheme-expressive",
-        "scheme-fidelity",
-        "scheme-fruit-salad",
-        "scheme-monochrome",
-        "scheme-neutral",
-        "scheme-rainbow",
-        "scheme-tonal-spot",
-        "scheme-vibrant"
-    ]
+    readonly property list<string> matugenSchemes: PaletteSchemes.schemes.map(scheme => scheme.id)
     property var presets: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.colorPresets : []
 
     property var combinedModel: {
@@ -152,19 +144,8 @@ Item {
 
     Component.onCompleted: updateSelectedIndex()
 
-    function getSchemeDisplayName(scheme) {
-        const map = {
-            "scheme-content": "Content",
-            "scheme-expressive": "Expressive",
-            "scheme-fidelity": "Fidelity",
-            "scheme-fruit-salad": "Fruit Salad",
-            "scheme-monochrome": "Monochrome",
-            "scheme-neutral": "Neutral",
-            "scheme-rainbow": "Rainbow",
-            "scheme-tonal-spot": "Tonal Spot",
-            "scheme-vibrant": "Vibrant"
-        };
-        return map[scheme] || scheme;
+    function getSchemeDisplayName(scheme: string): string {
+        return PaletteSchemes.schemes.find(item => item.id === scheme)?.label ?? scheme;
     }
 
     function getCurrentDisplayName() {
@@ -366,6 +347,11 @@ Item {
 
     PopupWindow {
         id: schemeListPopup
+        BackgroundEffect.blurRegion: Region {
+            width: schemeListPopup.width
+            height: schemeListPopup.height
+            radius: Styling.radius(-12)
+        }
         anchor.item: schemeButton
         anchor.rect.x: 0
         anchor.rect.y: schemeButton.height + 4

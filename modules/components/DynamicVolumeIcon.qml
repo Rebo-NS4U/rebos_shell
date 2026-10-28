@@ -32,7 +32,7 @@ Item {
         width: root.size
         height: root.size
 
-        // Primary: Phosphor Icon font (perfect match with nonchalant shell outline styling and visual weight)
+        // Primary: Phosphor Icon font (perfect match with rebos_shell outline styling and visual weight)
         Text {
             id: phosphorGlyph
             visible: !root.useMaterialFont && !root.useCanvas

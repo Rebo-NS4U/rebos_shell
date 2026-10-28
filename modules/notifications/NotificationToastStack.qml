@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import QtQuick.Layouts
 import Quickshell.Widgets
 import Quickshell.Services.Notifications
@@ -13,6 +14,11 @@ import qs.config
 // toasts "spawning away" off the right edge).
 Item {
     id: root
+
+    readonly property Region backgroundBlur: Region {
+        regions: toastColumn.children.filter(child => child.backgroundBlur !== undefined)
+            .map(child => child.backgroundBlur)
+    }
 
     readonly property int popupCount: Notifications.popupList ? Notifications.popupList.length : 0
     readonly property bool hasPopups: popupCount > 0
@@ -40,6 +46,7 @@ Item {
 
             delegate: Item {
                 id: toastRoot
+                readonly property Region backgroundBlur: BlurRegion { target: toastCard }
                 required property int index
 
                 readonly property var notif: {
@@ -112,21 +119,21 @@ Item {
                         property: "toastOpacity"
                         from: 0
                         to: 1
-                        duration: Math.max(root.animMs / 2, 80)
+                        duration: Motion.feedback
                         easing.type: Easing.OutQuad
                     }
                     NumberAnimation {
                         target: toastRoot
                         property: "slideY"
-                        from: root.isIsland ? -36 : -12
+                        from: -Motion.offset
                         to: 0
-                        duration: root.animMs
-                        easing.type: Easing.OutCubic
+                        duration: Motion.enter
+                        easing.type: Motion.enterCurve
                     }
 
                     onStarted: {
                         toastRoot.toastOpacity = 0;
-                        toastRoot.slideY = root.isIsland ? -36 : -12;
+                        toastRoot.slideY = -Motion.offset;
                     }
                     onFinished: toastRoot.entered = true
                 }
@@ -140,15 +147,15 @@ Item {
                         target: toastRoot
                         property: "toastOpacity"
                         to: 0
-                        duration: Math.max(root.animMs / 2, 80)
+                        duration: Motion.feedback
                         easing.type: Easing.InQuad
                     }
                     NumberAnimation {
                         target: toastRoot
                         property: "slideY"
-                        to: root.isIsland ? -36 : -10
-                        duration: root.animMs
-                        easing.type: Easing.InCubic
+                        to: -Motion.offset
+                        duration: Motion.exit
+                        easing.type: Motion.exitCurve
                     }
 
                     onFinished: toastRoot.finishExit(exitAnim.thenClear)

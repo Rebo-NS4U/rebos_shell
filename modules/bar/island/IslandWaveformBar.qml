@@ -27,7 +27,7 @@ Item {
     property real currentAmplitude: (root.isPlaying ? 5.0 : 0.0)
     Behavior on currentAmplitude {
         NumberAnimation {
-            duration: 350
+            duration: Motion.feedback
             easing.type: Easing.OutCubic
         }
     }
@@ -210,8 +210,8 @@ Item {
                 radius: width / 2
                 color: Colors.overBackground
 
-                Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
-                Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                Behavior on width { NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutQuad } }
+                Behavior on height { NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutQuad } }
             }
         }
 

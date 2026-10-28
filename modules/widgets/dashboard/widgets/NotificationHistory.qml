@@ -256,7 +256,7 @@ Item {
 
                 Image {
                     mipmap: true
-                    source: Qt.resolvedUrl("../../../../assets/nonchalant/nonchalant-logo.svg")
+                    source: Qt.resolvedUrl("../../../../assets/rebos_shell/rebos_shell-logo.svg")
                     opacity: 0.25
                     sourceSize.width: 64
                     sourceSize.height: 64

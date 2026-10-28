@@ -179,7 +179,7 @@ Singleton {
     FileView {
         id: notifFileView
         // QUICKSHELL-GIT: path: Quickshell.cachePath("notifications.json")
-        path: Quickshell.env("HOME") + "/.cache/nonchalant/notifications.json"
+        path: Quickshell.env("HOME") + "/.cache/rebos_shell/notifications.json"
         onLoaded: loadNotifications()
     }
 
@@ -400,7 +400,7 @@ Singleton {
             "id": notificationId,
             "actions": options.actions || [],
             "appIcon": options.appIcon || "",
-            "appName": options.appName || "Nonchalant",
+            "appName": options.appName || "rebos_shell",
             "body": options.body || "",
             "image": options.image || "",
             "summary": options.summary || "",

@@ -16,7 +16,7 @@ Item {
     property string icon: ""
     property bool isMainDevice: false
 
-    implicitHeight: 56
+    implicitHeight: volumeContent.implicitHeight + 32
     implicitWidth: parent?.width ?? 300
 
     PwObjectTracker {
@@ -27,8 +27,17 @@ Item {
     readonly property real volume: root.node?.audio?.volume ?? 0
     property real lastSetVolume: volume
 
-    ColumnLayout {
+    StyledRect {
         anchors.fill: parent
+        variant: "common"
+        radius: Styling.radius(-2)
+        border.width: 1
+        border.color: Qt.alpha(Colors.outline, 0.3)
+    }
+    ColumnLayout {
+        id: volumeContent
+        anchors.fill: parent
+        anchors.margins: 16
         spacing: 4
 
         // First row: Icon + Slider

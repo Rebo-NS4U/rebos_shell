@@ -41,11 +41,8 @@ Item {
                 Behavior on scale {
                     enabled: (Config.animDuration ?? 0) > 0
                     NumberAnimation {
-                        duration: pressed
-                            ? Math.round((Config.animDuration ?? 300) * 0.27)
-                            : Math.round((Config.animDuration ?? 300) * 0.83)
-                        easing.type: pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 

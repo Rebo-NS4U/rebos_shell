@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 test_adversarial_simulation.py
-Adversarial stress test harness & simulator for Nonchalant Shell Dynamic Island.
+Adversarial stress test harness & simulator for rebos_shell Dynamic Island.
 Empirically challenges:
 1. Rapid Niri window open/close event bursts (churn)
 2. Rapid workspace thrashing and oscillation

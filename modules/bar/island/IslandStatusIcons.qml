@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import qs.modules.bar
 import qs.modules.services
 import qs.modules.theme
 import qs.modules.components
@@ -12,6 +13,7 @@ RowLayout {
 
     required property Item bar
 
+    Layout.alignment: Qt.AlignVCenter
     spacing: 2
 
     readonly property string iconFont: "Material Symbols Rounded"
@@ -21,8 +23,9 @@ RowLayout {
     // ═══════════════════════════════════════════════════════════════
     Item {
         id: brightBtn
-        implicitWidth: 26
-        implicitHeight: 26
+        objectName: "bar-brightness"
+        implicitWidth: root.bar.islandHeight - 4
+        implicitHeight: root.bar.islandHeight - 4
         Layout.alignment: Qt.AlignVCenter
 
         readonly property var currentMonitor: Brightness.getMonitorForScreen(root.bar.screen)
@@ -38,39 +41,37 @@ RowLayout {
             return "light_mode";
         }
 
-        readonly property color iconColor: {
-            if (brightMouse.containsMouse) return Colors.primary;
-            if (brightnessVal <= 0.15) return Colors.overSurfaceVariant;
-            return Colors.overBackground;
-        }
+        readonly property color iconColor: BarAppearance.iconColor
 
         StyledRect {
             anchors.fill: parent
-            radius: 13
-            variant: brightMouse.containsMouse ? "focus" : "transparent"
+            radius: height / 2
+            variant: "focus"
+            opacity: brightMouse.containsMouse ? 1 : 0
+            Behavior on opacity {
+                enabled: Config.animDuration > 0
+                NumberAnimation { duration: Math.min(Config.animDuration, 150); easing.type: Easing.OutCubic }
+            }
             scale: brightMouse.pressed ? 0.92 : 1.0
             Behavior on scale {
                 NumberAnimation {
-                    duration: brightMouse.pressed ? 80 : 250
-                    easing.type: brightMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.5
+                    duration: Config.animDuration > 0 ? Math.min(Config.animDuration, brightMouse.pressed ? 80 : 160) : 0
+                    easing.type: Easing.OutCubic
                 }
-            }
-
-            DynamicSunIcon {
-                anchors.centerIn: parent
-                size: 18
-                value: brightBtn.brightnessVal
-                color: brightBtn.iconColor
-                animated: true
             }
         }
 
-        WheelHandler {
-            target: brightBtn
-            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: event => {
-                const delta = event.angleDelta.y > 0 ? 0.05 : -0.05;
+        DynamicSunIcon {
+            anchors.centerIn: parent
+            size: 18
+            value: brightBtn.brightnessVal
+            color: brightBtn.iconColor
+            animated: true
+        }
+
+        ScrollStepHandler {
+            onStepped: steps => {
+                const delta = steps * 0.05;
                 const newVal = Math.max(0.05, Math.min(1.0, brightBtn.brightnessVal + delta));
                 if (Brightness.syncBrightness) {
                     for (let i = 0; i < Brightness.monitors.length; i++) {
@@ -88,12 +89,19 @@ RowLayout {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.bar.expand("dashboard")
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton)
+                    NightLightService.toggle();
+                else
+                    root.bar.expand("dashboard");
+            }
         }
 
         StyledToolTip {
             show: brightMouse.containsMouse
             tooltipText: "Brightness " + Math.round(brightBtn.brightnessVal * 100) + "%"
+            description: "Scroll to adjust · Click for controls · Right-click for night light"
         }
     }
 
@@ -102,8 +110,9 @@ RowLayout {
     // ═══════════════════════════════════════════════════════════════
     Item {
         id: volBtn
-        implicitWidth: 26
-        implicitHeight: 26
+        objectName: "bar-volume"
+        implicitWidth: root.bar.islandHeight - 4
+        implicitHeight: root.bar.islandHeight - 4
         Layout.alignment: Qt.AlignVCenter
 
         readonly property var audioDevice: Audio.sink?.audio ?? null
@@ -118,42 +127,37 @@ RowLayout {
             return "volume_up";
         }
 
-        readonly property color iconColor: {
-            if (isMuted) return Colors.error;
-            if (volMouse.containsMouse) return Colors.primary;
-            if (volumeVal < 0.01) return Colors.overSurfaceVariant;
-            return Colors.overBackground;
-        }
+        readonly property color iconColor: BarAppearance.iconColor
 
         StyledRect {
             anchors.fill: parent
-            radius: 13
-            variant: volMouse.containsMouse ? "focus" : "transparent"
+            radius: height / 2
+            variant: "focus"
+            opacity: volMouse.containsMouse ? 1 : 0
+            Behavior on opacity {
+                enabled: Config.animDuration > 0
+                NumberAnimation { duration: Math.min(Config.animDuration, 150); easing.type: Easing.OutCubic }
+            }
             scale: volMouse.pressed ? 0.92 : 1.0
             Behavior on scale {
                 NumberAnimation {
-                    duration: volMouse.pressed ? 80 : 250
-                    easing.type: volMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.5
+                    duration: Config.animDuration > 0 ? Math.min(Config.animDuration, volMouse.pressed ? 80 : 160) : 0
+                    easing.type: Easing.OutCubic
                 }
-            }
-
-            DynamicVolumeIcon {
-                anchors.centerIn: parent
-                size: 18
-                value: volBtn.volumeVal
-                muted: volBtn.isMuted
-                color: volBtn.iconColor
-                animated: true
             }
         }
 
-        WheelHandler {
-            target: volBtn
-            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: event => {
+        BarSymbol {
+            anchors.centerIn: parent
+            size: 18
+            symbol: volBtn.isMuted ? Icons.speakerSlash : (volBtn.volumeVal < 0.01 ? Icons.speakerNone : (volBtn.volumeVal <= 0.5 ? Icons.speakerLow : Icons.speakerHigh))
+            color: volBtn.iconColor
+        }
+
+        ScrollStepHandler {
+            onStepped: steps => {
                 if (volBtn.audioDevice) {
-                    const delta = event.angleDelta.y > 0 ? 0.05 : -0.05;
+                    const delta = steps * 0.05;
                     volBtn.audioDevice.volume = Math.max(0.0, Math.min(1.0, volBtn.volumeVal + delta));
                 }
             }
@@ -166,7 +170,7 @@ RowLayout {
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.PointingHandCursor
             onClicked: mouse => {
-                if (mouse.button === Qt.RightButton) {
+                if (mouse.button === Qt.LeftButton) {
                     root.bar.expand("sound");
                 } else {
                     if (volBtn.audioDevice) {
@@ -179,6 +183,7 @@ RowLayout {
         StyledToolTip {
             show: volMouse.containsMouse
             tooltipText: (volBtn.isMuted ? "Muted " : "Volume ") + Math.round(volBtn.volumeVal * 100) + "%"
+            description: "Scroll to adjust · Click for sound · Right-click to mute"
         }
     }
 
@@ -188,41 +193,40 @@ RowLayout {
     Item {
         id: batBtn
         visible: Battery.available
-        implicitWidth: 26
-        implicitHeight: 26
+        implicitWidth: root.bar.islandHeight - 4
+        implicitHeight: root.bar.islandHeight - 4
         Layout.alignment: Qt.AlignVCenter
 
         readonly property int percent: Battery.percent
         readonly property bool charging: Battery.charging
 
-        readonly property color iconColor: {
-            if (percent < 20 && !charging) return Colors.error;
-            if (charging) return Colors.primary;
-            if (batMouse.containsMouse) return Colors.primary;
-            return Colors.overBackground;
-        }
+        readonly property color iconColor: BarAppearance.iconColor
 
         StyledRect {
             anchors.fill: parent
-            radius: 13
-            variant: batMouse.containsMouse ? "focus" : "transparent"
+            radius: height / 2
+            variant: "focus"
+            opacity: batMouse.containsMouse ? 1 : 0
+            Behavior on opacity {
+                enabled: Config.animDuration > 0
+                NumberAnimation { duration: Math.min(Config.animDuration, 150); easing.type: Easing.OutCubic }
+            }
             scale: batMouse.pressed ? 0.92 : 1.0
             Behavior on scale {
                 NumberAnimation {
-                    duration: batMouse.pressed ? 80 : 250
-                    easing.type: batMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.5
+                    duration: Config.animDuration > 0 ? Math.min(Config.animDuration, batMouse.pressed ? 80 : 160) : 0
+                    easing.type: Easing.OutCubic
                 }
             }
+        }
 
-            DynamicBatteryIcon {
-                anchors.centerIn: parent
-                size: 18
-                percent: batBtn.percent
-                charging: batBtn.charging
-                color: batBtn.iconColor
-                animated: true
-            }
+        DynamicBatteryIcon {
+            anchors.centerIn: parent
+            size: 18
+            percent: batBtn.percent
+            charging: batBtn.charging
+            color: batBtn.iconColor
+            animated: true
         }
 
         MouseArea {
@@ -236,6 +240,7 @@ RowLayout {
         StyledToolTip {
             show: batMouse.containsMouse
             tooltipText: `${batBtn.percent}%${batBtn.charging ? " (Charging)" : ""}`
+            description: "Click for battery and power"
         }
     }
 }

@@ -1,6 +1,6 @@
-# <img src="./assets/nonchalant/nonchalant-logo-color.svg" alt="" width="40" height="40"> Nonchalant Shell
+# <img src="./assets/rebos_shell/rebos_shell-logo-color.svg" alt="" width="40" height="40"> rebos_shell
 
-**Nonchalant Shell** is a Niri-first Wayland desktop shell built with
+**rebos_shell** is a Niri-first Wayland desktop shell built with
 [Quickshell](https://quickshell.org).
 
 ## Hard fork
@@ -28,16 +28,17 @@ Multi-monitor support uses Quickshell `Variants` on `Quickshell.screens`.
 - Unified bar with workspaces/taskbar, clock, system status, and systray
 - Floating run menu and power menu
 - Wallpaper picker and secure `WlSessionLock` session lock
-- Isolated `nonchalant` config, state, cache, data, and IPC paths
+- Isolated `rebos_shell` config, state, cache, data, and IPC paths
+- [Persistent assistant](scripts/ai_bridge.md) that keeps working across shell reloads
 
 ## Direct commands
 
 The shell exposes lightweight commands through its IPC runner. For example,
-`nonchalant run wallpapers` opens the wallpaper picker on the focused monitor
+`rebos_shell run wallpapers` opens the wallpaper picker on the focused monitor
 and toggles it closed when invoked again. This can be bound from Niri with:
 
 ```kdl
-Mod+Shift+W hotkey-overlay-title="Open Wallpapers" { spawn "nonchalant" "run" "wallpapers"; }
+Mod+Shift+W hotkey-overlay-title="Open Wallpapers" { spawn "rebos_shell" "run" "wallpapers"; }
 ```
 
 ## Run the development tree
@@ -47,7 +48,7 @@ then run from a checkout:
 
 ```bash
 ./scripts/install-fonts.sh
-qs -p /path/to/nonchalant-shell
+qs -p /path/to/rebos_shell
 ```
 
 Or use the CLI wrapper:
@@ -61,7 +62,7 @@ adjustment for this fork.
 
 ## Attribution and license
 
-Nonchalant Shell is derived from Ambxst by Axenide. Full copyright and
+rebos_shell is a customized desktop shell derived from Ambxst by Axenide and contributions by jR4dh3y. Full copyright and
 contributor history from that lineage is preserved in this repository’s Git
 history.
 

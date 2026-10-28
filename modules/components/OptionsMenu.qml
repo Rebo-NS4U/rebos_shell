@@ -138,24 +138,24 @@ Menu {
             Behavior on y {
                 enabled: root.previousHoveredIndex !== -1 && root.hoveredIndex !== -1 && Config.animDuration > 0
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Motion.feedback
+                    easing.type: Motion.feedbackCurve
                 }
             }
 
             Behavior on opacity {
                 enabled: Config.animDuration > 0
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Motion.feedback
+                    easing.type: Motion.feedbackCurve
                 }
             }
 
             Behavior on color {
                 enabled: Config.animDuration > 0
                 ColorAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Motion.feedback
+                    easing.type: Motion.feedbackCurve
                 }
             }
         }
@@ -252,8 +252,8 @@ Menu {
                                 Behavior on color {
                                     enabled: Config.animDuration > 0
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutQuart
+                                        duration: Motion.feedback
+                                        easing.type: Motion.feedbackCurve
                                     }
                                 }
                             }
@@ -300,8 +300,8 @@ Menu {
                         Behavior on color {
                             enabled: Config.animDuration > 0
                             ColorAnimation {
-                                duration: Config.animDuration / 2
-                                easing.type: Easing.OutQuart
+                                duration: Motion.feedback
+                                easing.type: Motion.feedbackCurve
                             }
                         }
                     }

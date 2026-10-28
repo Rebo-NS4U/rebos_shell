@@ -39,6 +39,9 @@ Item {
         source: root.hasArtwork ? root.trackArt : root.wallpaperUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
+        // Keep pending artwork loads out of the shared reload cache.
+        cache: false
+
         clip: true
         layer.enabled: true
         layer.effect: MultiEffect {
@@ -47,15 +50,15 @@ Item {
             blur: 0.8
         }
         opacity: root.hasArtwork ? 0.35 : (root.wallpaperUrl !== "" ? 0.18 : 0.0)
-        Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic } }
     }
 
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#55000000" }
-            GradientStop { position: 0.5; color: "#77000000" }
-            GradientStop { position: 1.0; color: "#aa000000" }
+            GradientStop { position: 0.0; color: Styling.withOpacity(Colors.scrim, 0.33) }
+            GradientStop { position: 0.5; color: Styling.withOpacity(Colors.scrim, 0.47) }
+            GradientStop { position: 1.0; color: Styling.withOpacity(Colors.scrim, 0.67) }
         }
     }
 
@@ -81,9 +84,8 @@ Item {
                 scale: backMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -131,7 +133,7 @@ Item {
                 radius: 14
                 variant: playerMouse.containsMouse ? "focus" : "common"
                 scale: playerMouse.pressed ? 0.88 : (playerMouse.containsMouse ? 1.06 : 1.0)
-                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+                Behavior on scale { NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutQuad } }
 
                 Text {
                     id: playerIconText
@@ -144,7 +146,7 @@ Item {
                     color: Colors.primary
 
                     Behavior on rotation {
-                        NumberAnimation { duration: 320; easing.type: Easing.OutBack }
+                        NumberAnimation { duration: Motion.feedback; easing.type: Motion.enterCurve }
                     }
                 }
 
@@ -199,8 +201,8 @@ Item {
                 scale: discMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: 350
-                        easing.type: Easing.OutBack
+                        duration: Motion.feedback
+                        easing.type: Motion.enterCurve
                         easing.overshoot: 1.25
                     }
                 }
@@ -212,7 +214,7 @@ Item {
                     height: width
                     radius: width / 2
                     color: "transparent"
-                    border.color: Qt.rgba(0, 0, 0, 0.45)
+                    border.color: Styling.withOpacity(Colors.scrim, 0.45)
                     border.width: 3
                 }
 
@@ -234,8 +236,8 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         radius: width / 2
-                        color: "#0e0e12"
-                        border.color: "#252530"
+                        color: Colors.surfaceContainerLowest
+                        border.color: Colors.outlineVariant
                         border.width: 1.5
 
                         // Concentric vinyl microgrooves
@@ -245,7 +247,7 @@ Item {
                             height: width
                             radius: width / 2
                             color: "transparent"
-                            border.color: Qt.rgba(1, 1, 1, 0.07)
+                            border.color: Styling.withOpacity(Colors.outline, 0.07)
                             border.width: 1
                         }
 
@@ -255,7 +257,7 @@ Item {
                             height: width
                             radius: width / 2
                             color: "transparent"
-                            border.color: Qt.rgba(1, 1, 1, 0.06)
+                            border.color: Styling.withOpacity(Colors.outline, 0.06)
                             border.width: 1
                         }
 
@@ -265,7 +267,7 @@ Item {
                             height: width
                             radius: width / 2
                             color: "transparent"
-                            border.color: Qt.rgba(1, 1, 1, 0.05)
+                            border.color: Styling.withOpacity(Colors.outline, 0.05)
                             border.width: 1
                         }
 
@@ -317,6 +319,9 @@ Item {
                                 }
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
+                                // Keep pending artwork loads out of the shared reload cache.
+                                cache: false
+
                                 visible: source !== ""
                             }
 
@@ -337,8 +342,8 @@ Item {
                                 width: 10
                                 height: 10
                                 radius: 5
-                                color: "#0a0a0d"
-                                border.color: "#c0c0c8"
+                                color: Colors.surfaceContainerLowest
+                                border.color: Colors.overSurface
                                 border.width: 1.5
                             }
                         }
@@ -376,7 +381,7 @@ Item {
                     elide: Text.ElideRight
                     Layout.fillWidth: true
 
-                    Behavior on opacity { NumberAnimation { duration: 160 } }
+                    Behavior on opacity { NumberAnimation { duration: Motion.feedback } }
                 }
 
                 Text {
@@ -391,7 +396,7 @@ Item {
                     elide: Text.ElideRight
                     Layout.fillWidth: true
 
-                    Behavior on opacity { NumberAnimation { duration: 160 } }
+                    Behavior on opacity { NumberAnimation { duration: Motion.feedback } }
                 }
 
                 Text {
@@ -433,9 +438,8 @@ Item {
                 scale: shuffleMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: shuffleMouse.pressed ? 80 : 250
-                        easing.type: shuffleMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: shuffleMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -471,9 +475,8 @@ Item {
                 scale: prevMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: prevMouse.pressed ? 80 : 250
-                        easing.type: prevMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: prevMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -507,9 +510,8 @@ Item {
                 scale: playMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: playMouse.pressed ? 80 : 250
-                        easing.type: playMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: playMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -542,9 +544,8 @@ Item {
                 scale: nextMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: nextMouse.pressed ? 80 : 250
-                        easing.type: nextMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: nextMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -580,9 +581,8 @@ Item {
                 scale: loopMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: loopMouse.pressed ? 80 : 250
-                        easing.type: loopMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: loopMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 

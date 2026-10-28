@@ -54,9 +54,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -120,9 +119,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: settingsMouse.pressed ? 80 : 250
-                        easing.type: settingsMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: settingsMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -161,9 +159,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: rescanMouse.pressed ? 80 : 250
-                        easing.type: rescanMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: rescanMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -219,7 +216,7 @@ Item {
 
                     Behavior on color {
                         enabled: Config.animDuration > 0
-                        ColorAnimation { duration: 150 }
+                        ColorAnimation { duration: Motion.feedback }
                     }
 
                     Rectangle {
@@ -233,7 +230,7 @@ Item {
                         Behavior on x {
                             enabled: Config.animDuration > 0
                             NumberAnimation {
-                                duration: 150
+                                duration: Motion.feedback
                                 easing.type: Easing.OutCubic
                             }
                         }
@@ -246,16 +243,23 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         const newState = !BluetoothService.enabled;
-                        BluetoothService.setEnabled(newState);
-                        if (newState) {
-                            BluetoothService.startDiscovery();
-                        }
+                        BluetoothService.setEnabled(newState, newState);
                     }
                 }
             }
         }
 
         // Bluetooth device list
+        StyledText {
+            Layout.fillWidth: true
+            visible: BluetoothService.lastError.length > 0
+            text: BluetoothService.lastError
+            color: Colors.error
+            wrapMode: Text.Wrap
+            maximumLineCount: 3
+            elide: Text.ElideRight
+        }
+
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true

@@ -165,7 +165,7 @@ Item {
         Behavior on anchors.leftMargin {
             enabled: !dragManager.dragging && Config.animDuration > 0
             NumberAnimation {
-                duration: 300
+                duration: Motion.feedback
                 easing.type: Easing.OutCubic
             }
         }
@@ -177,7 +177,7 @@ Item {
             enabled: Config.animDuration > 0
             NumberAnimation {
                 duration: Config.animDuration
-                easing.type: Easing.OutBack
+                easing.type: Motion.enterCurve
             }
         }
 

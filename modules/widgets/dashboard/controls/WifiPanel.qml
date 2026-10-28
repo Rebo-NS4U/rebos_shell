@@ -12,7 +12,7 @@ import qs.config
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
@@ -33,7 +33,7 @@ Item {
         id: networkList
         anchors.fill: parent
         clip: true
-        spacing: 4
+        spacing: 12
         cacheBuffer: 1000
         reuseItems: true
 
@@ -48,6 +48,7 @@ Item {
                 width: root.contentWidth
                 anchors.horizontalCenter: parent.horizontalCenter
                 title: "Wi-Fi"
+            description: "Connect to a network or change Wi-Fi settings."
                 statusText: NetworkService.wifiConnecting ? "Connecting..." : (NetworkService.wifiStatus === "limited" ? "Limited" : "")
                 statusColor: NetworkService.wifiStatus === "limited" ? Colors.warning : Styling.srItem("overprimary")
                 showToggle: true
@@ -103,7 +104,7 @@ Item {
         }
 
         // Empty state
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             anchors.centerIn: parent

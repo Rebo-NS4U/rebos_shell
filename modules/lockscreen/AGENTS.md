@@ -10,7 +10,7 @@ to the locked frame flashes the bright wallpaper. Flow:
 1. `LockscreenService.lock()` → `GlobalStates.beginLockshotPrep()`.
 2. Each `Wallpaper.qml` window (one per screen) captures its output via a
    hidden `ScreencopyView` + `grabToImage()`, saves to
-   `$XDG_RUNTIME_DIR/nonchalant-lockshot-<screen>.png`, preloads it into the
+   `$XDG_RUNTIME_DIR/rebos_shell-lockshot-<screen>.png`, preloads it into the
    pixmap cache, and reports via `GlobalStates.notifyLockshotPrepared()`.
 3. Service engages the lock once all screens report (400ms timeout fallback).
 4. `LockScreen.qml` frame-1 shows the shot (cache hit via matching

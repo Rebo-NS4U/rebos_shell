@@ -41,13 +41,13 @@ QtObject {
         const textdarkest = isLight ? toRGB(Qt.lighter(fg, 3.19)) : toRGB(Qt.darker(fg, 3.19))
 
         let css = `/**
- * @name Nonchalant
- * @description A Discord recolor theme, generated with Nonchalant.
+ * @name rebos_shell
+ * @description A Discord recolor theme, generated with rebos_shell.
  * @author Axenide
  * @version 1.0.0
  * @invite gHG9WHyNvH
- * @website https://axeni.de/nonchalant
- * @source https://github.com/Axenide/Nonchalant
+ * @website https://github.com/Dytox2/rebos_enclosure
+ * @source https://github.com/Dytox2/rebos_enclosure
  * @authorId 294856304969908224
  * @authorLink https://axeni.de
 */ 
@@ -79,7 +79,7 @@ QtObject {
 `
 
         const home = Quickshell.env("HOME")
-        const vesktopPath = home + "/.config/vesktop/themes/nonchalant.css"
+        const vesktopPath = home + "/.config/vesktop/themes/rebos_shell.css"
         
         const escape = (str) => {
             if (!str) return ""
@@ -92,23 +92,8 @@ QtObject {
 
         const cmd = `mkdir -p "$(dirname "${vesktopPath}")" && echo "${escape(css)}" > "${vesktopPath}"`
         
-        writerProcess.command = ["sh", "-c", cmd]
-        writerProcess.running = true
+        writerProcess.submit(["sh", "-c", cmd]);
     }
 
-    property Process writerProcess: Process {
-        id: writerProcess
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: console.log("DiscordGenerator: Theme generated.")
-        }
-        stderr: StdioCollector {
-            onStreamFinished: (err) => {
-                if (err) {
-                    const text = err.toString().trim();
-                    if (text) console.error("DiscordGenerator Error:", text)
-                }
-            }
-        }
-    }
+    property ThemeWriter writerProcess: ThemeWriter {}
 }

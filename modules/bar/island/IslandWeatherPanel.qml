@@ -45,13 +45,12 @@ Item {
                 scale: backMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
-                Text {
+                StyledText {
                     anchors.centerIn: parent
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
@@ -78,7 +77,7 @@ Item {
             RowLayout {
                 spacing: 6
 
-                Text {
+                StyledText {
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
                     text: "Weather"
@@ -88,7 +87,7 @@ Item {
                     color: Colors.overBackground
                 }
 
-                Text {
+                StyledText {
                     readonly property string loc: Config.weather?.location || ""
                     visible: loc.length > 0
                     renderType: Text.NativeRendering
@@ -116,13 +115,12 @@ Item {
                 scale: refreshMouse.pressed ? 0.92 : 1.0
                 Behavior on scale {
                     NumberAnimation {
-                        duration: refreshMouse.pressed ? 80 : 250
-                        easing.type: refreshMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: refreshMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
-                Text {
+                StyledText {
                     anchors.centerIn: parent
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
@@ -145,6 +143,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    enabled: !WeatherService.isLoading
                     onClicked: WeatherService.updateWeather()
                 }
 
@@ -153,6 +152,15 @@ Item {
                     tooltipText: "Refresh weather"
                 }
             }
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            visible: !WeatherService.dataAvailable || WeatherService.hasFailed
+            text: WeatherService.isLoading ? "Updating weather…" : "Weather unavailable · Try refreshing"
+            color: Colors.overSurfaceVariant
+            font.pixelSize: Styling.fontSize(-1)
+            wrapMode: Text.WordWrap
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -172,13 +180,19 @@ Item {
             }
         }
 
+        WeatherDetails {
+            Layout.fillWidth: true
+            visible: WeatherService.dataAvailable
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // 2. 5-DAY FORECAST CARD: Clean, mathematically equal 5 columns
         // ═══════════════════════════════════════════════════════════════
         StyledRect {
             id: forecastCard
             Layout.fillWidth: true
-            implicitHeight: 96
+            implicitHeight: 114
+            visible: WeatherService.forecast.length > 0
             radius: Styling.radius(2)
             variant: "internalbg"
             clip: true
@@ -202,7 +216,7 @@ Item {
                             spacing: 3
 
                             // Day name ("Today", "Mon", "Tue", etc.)
-                            Text {
+                            StyledText {
                                 Layout.alignment: Qt.AlignHCenter
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
@@ -214,7 +228,7 @@ Item {
                             }
 
                             // Weather condition emoji
-                            Text {
+                            StyledText {
                                 Layout.alignment: Qt.AlignHCenter
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
@@ -224,7 +238,7 @@ Item {
                             }
 
                             // Max temperature (+30°)
-                            Text {
+                            StyledText {
                                 Layout.alignment: Qt.AlignHCenter
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
@@ -236,7 +250,7 @@ Item {
                             }
 
                             // Min temperature (+24°)
-                            Text {
+                            StyledText {
                                 Layout.alignment: Qt.AlignHCenter
                                 renderType: Text.NativeRendering
                                 font.hintingPreference: Font.PreferFullHinting
@@ -244,6 +258,12 @@ Item {
                                 font.family: Config.theme.monoFont
                                 font.pixelSize: Styling.fontSize(-2)
                                 color: Colors.overSurfaceVariant
+                            }
+                            StyledText {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: Number.isFinite(dayCol.modelData.rainChance) ? Math.round(dayCol.modelData.rainChance) + "%" : "—"
+                                font.pixelSize: Styling.fontSize(-3)
+                                color: Colors.primary
                             }
                         }
 
@@ -256,12 +276,18 @@ Item {
                             anchors.topMargin: 8
                             anchors.bottomMargin: 8
                             width: 1
-                            color: Colors.outlineVariant ?? Qt.rgba(1, 1, 1, 0.12)
+                            color: Colors.outlineVariant ?? Styling.withOpacity(Colors.overSurface, 0.12)
                             opacity: 0.35
                         }
                     }
                 }
             }
+        }
+        StyledText {
+            Layout.fillWidth: true
+            text: "Open-Meteo" + (WeatherService.lastUpdated ? " · Updated " + WeatherService.lastUpdated : "")
+            font.pixelSize: Styling.fontSize(-3)
+            color: Colors.overSurfaceVariant
         }
     }
 }

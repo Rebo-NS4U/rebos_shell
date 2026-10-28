@@ -6,6 +6,7 @@ import qs.modules.theme
 import qs.modules.components
 import qs.modules.services
 import qs.modules.globals
+import qs.modules.widgets.dashboard.metrics
 import qs.config
 
 Item {
@@ -59,9 +60,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -98,11 +98,35 @@ Item {
             Item { Layout.fillWidth: true }
         }
 
+        MetricAction {
+            Layout.fillWidth: true
+            text: SystemResources.pickingWindow ? "Selecting window…" : "Pick window on screen"
+            enabled: !SystemResources.pickingWindow && !SystemResources.windowActionBusy
+            onClicked: SystemResources.pickWindow()
+        }
+        StyledText {
+            Layout.fillWidth: true
+            visible: SystemResources.detailMetric === ""
+            text: "Click a stat to see processes"
+            color: Colors.overSurfaceVariant
+            font.pixelSize: Styling.fontSize(-3)
+        }
+        Loader {
+            Layout.fillWidth: true
+            active: SystemResources.detailMetric !== ""
+            // An unloaded Loader can retain its last height. Exclude it from layout.
+            visible: active
+            sourceComponent: SystemResources.detailMetric === "window" ? windowDetails : processDetails
+        }
+        Component { id: windowDetails; WindowDetails { } }
+        Component { id: processDetails; ProcessDetails { } }
+
         // ═══════════════════════════════════════════════════════════════
         // NATIVE METRICS BODY (Single unified darker surface)
         // ═══════════════════════════════════════════════════════════════
         StyledRect {
             id: metricsContainer
+            visible: SystemResources.detailMetric === ""
             Layout.fillWidth: true
             implicitHeight: statsContentColumn.implicitHeight + 24
             radius: Styling.radius(2)
@@ -117,6 +141,8 @@ Item {
 
                     // 1. CPU Row
                     ColumnLayout {
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: SystemResources.showProcesses("cpu", "CPU processes") }
                         Layout.fillWidth: true
                         spacing: 6
 
@@ -198,7 +224,7 @@ Item {
                                 variant: "primary"
 
                                 Behavior on width {
-                                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                    NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic }
                                 }
                             }
                         }
@@ -214,6 +240,8 @@ Item {
 
                     // 2. Memory (RAM) Row
                     ColumnLayout {
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: SystemResources.showProcesses("ram", "Memory processes") }
                         Layout.fillWidth: true
                         spacing: 6
 
@@ -290,7 +318,7 @@ Item {
                                 variant: "primary"
 
                                 Behavior on width {
-                                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                    NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic }
                                 }
                             }
                         }
@@ -310,6 +338,8 @@ Item {
 
                         ColumnLayout {
                             id: gpuDelegate
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: SystemResources.showProcesses("gpu:" + (SystemResources.gpuPciIds[gpuDelegate.index] ?? ""), (SystemResources.gpuNames[gpuDelegate.index] ?? "GPU") + " processes") }
                             required property int index
                             Layout.fillWidth: true
                             spacing: 6
@@ -395,7 +425,7 @@ Item {
                                     variant: "primary"
 
                                     Behavior on width {
-                                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                        NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic }
                                     }
                                 }
                             }
@@ -415,6 +445,8 @@ Item {
 
                         ColumnLayout {
                             id: diskDelegate
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: SystemResources.showProcesses("disk", "Disk activity · " + diskDelegate.modelData) }
                             required property string modelData
                             Layout.fillWidth: true
                             spacing: 6
@@ -494,7 +526,7 @@ Item {
                                     variant: "primary"
 
                                     Behavior on width {
-                                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                        NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic }
                                     }
                                 }
                             }
@@ -510,6 +542,8 @@ Item {
 
                     // 5. Network Row
                     RowLayout {
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: SystemResources.showProcesses("network", "Network processes") }
                         Layout.fillWidth: true
                         spacing: 8
 

@@ -16,7 +16,7 @@ Item {
     property bool isOutput: true
     property bool isSelected: false
 
-    implicitHeight: 40
+    implicitHeight: Styling.fontSize(0) * 4
     implicitWidth: parent?.width ?? 300
 
     PwObjectTracker {
@@ -26,7 +26,9 @@ Item {
     StyledRect {
         anchors.fill: parent
         variant: isSelected ? "primary" : (mouseArea.containsMouse ? "focus" : "common")
-        radius: isSelected ? Styling.radius(-4) : Styling.radius(4)
+        radius: Styling.radius(-2)
+        border.width: root.isSelected ? 2 : 1
+        border.color: root.isSelected ? Colors.primary : Qt.alpha(Colors.outline, 0.3)
     }
 
     MouseArea {

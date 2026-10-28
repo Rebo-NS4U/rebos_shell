@@ -35,8 +35,8 @@ Popup {
 
     // ACP agents are configured locally; refresh reloads their command bindings.
     Component.onCompleted: {
-        if (Ai.models.length === 0) {
-            Ai.fetchAvailableModels();
+        if (Ai.activeSession.models.length === 0) {
+            Ai.activeSession.fetchAvailableModels();
         }
     }
 
@@ -80,8 +80,8 @@ Popup {
     function updateFilteredModels() {
         let text = searchInput.text.toLowerCase();
         let allModels = [];
-        for (let i = 0; i < Ai.models.length; i++) {
-            allModels.push(Ai.models[i]);
+        for (let i = 0; i < Ai.activeSession.models.length; i++) {
+            allModels.push(Ai.activeSession.models[i]);
         }
 
         if (text.trim() === "") {
@@ -153,7 +153,7 @@ Popup {
                 onAccepted: {
                     if (root.filteredModels.length > 0 && root.selectedIndex >= 0) {
                         let m = root.filteredModels[root.selectedIndex];
-                        Ai.setModel(m.name);
+                        Ai.activeSession.setModel(m.name);
                         root.modelSelected(m.name);
                         root.close();
                     }
@@ -210,7 +210,7 @@ Popup {
                             font.hintingPreference: Font.PreferFullHinting
                             id: refreshIcon
                             anchors.centerIn: parent
-                            text: Ai.fetchingModels ? Icons.circleNotch : (refreshBtn.confirming ? Icons.sync : Icons.arrowCounterClockwise)
+                            text: Ai.activeSession.fetchingModels ? Icons.circleNotch : (refreshBtn.confirming ? Icons.sync : Icons.arrowCounterClockwise)
                             font.family: Icons.font
                             font.pixelSize: 20
                             color: refreshBtn.confirming ? Styling.srItem("primary") : Styling.srItem("overprimary")
@@ -220,7 +220,7 @@ Popup {
                                 from: 0
                                 to: 360
                                 duration: 1000
-                                running: Ai.fetchingModels
+                                running: Ai.activeSession.fetchingModels
                                 onRunningChanged: {
                                     if (!running) {
                                         refreshIcon.rotation = 0;
@@ -278,7 +278,7 @@ Popup {
                     if (!confirming) {
                         confirming = true;
                     } else {
-                        Ai.fetchAvailableModels();
+                        Ai.activeSession.fetchAvailableModels();
                         confirming = false;
                     }
                 }
@@ -366,7 +366,7 @@ Popup {
 
                 // Controlled by ListView's currentIndex via root.selectedIndex
                 property bool isSelected: ListView.isCurrentItem
-                property bool isActiveModel: Ai.currentModel && Ai.currentModel.id === modelData.id
+                property bool isActiveModel: Ai.activeSession.currentModel && Ai.activeSession.currentModel.id === modelData.id
 
                 contentItem: RowLayout {
                     anchors.fill: parent
@@ -543,7 +543,7 @@ Popup {
                 Item {}
 
                 onClicked: {
-                    Ai.setModel(modelData.name);
+                    Ai.activeSession.setModel(modelData.name);
                     root.modelSelected(modelData.name);
                     root.close();
                 }

@@ -7,17 +7,18 @@ import qs.modules.globals
 import qs.modules.services
 import qs.config
 import Quickshell.Io
+import "../theme/ShellStyles.js" as ShellStyles
 
 Singleton {
     id: root
 
-    readonly property string appId: "nonchalant"
-    readonly property string ipcPipe: "/tmp/nonchalant_ipc.pipe"
+    readonly property string appId: "rebos_shell"
+    readonly property string ipcRuntimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
 
     // High-performance Pipe Listener (Daemon mode)
     Process {
         id: pipeListener
-        command: ["bash", "-c", "rm -f " + root.ipcPipe + "; mkfifo " + root.ipcPipe + "; tail -f " + root.ipcPipe]
+        command: ["bash", "-c", 'set -euo pipefail; pipe="$1/rebos_shell_ipc_$UID.pipe"; rm -f -- "$pipe"; mkfifo -m 600 -- "$pipe"; exec tail -f -- "$pipe"', "rebos-shell-ipc", root.ipcRuntimeDir]
         running: true
         
         stdout: SplitParser {
@@ -32,7 +33,27 @@ Singleton {
 
     function run(command) {
         console.log("IPC run command received:", command);
+        const barAccentPrefix = "bar-accent ";
+        if (command.startsWith(barAccentPrefix)) {
+            const strength = Number(command.slice(barAccentPrefix.length));
+            if (Config.barReady && Number.isInteger(strength) && strength >= 0 && strength <= 100)
+                Config.bar.islandAccent = strength;
+            else
+                console.warn("Ignoring invalid bar accent strength:", command);
+            return;
+        }
+        if (command !== "notes" && QuickNotes.visible)
+            QuickNotes.close();
         switch (command) {
+            case "file-shelf":
+            case "shelf":
+                FileShelf.toggle("");
+                break;
+            case "notes":
+                if (!QuickNotes.visible)
+                    Visibilities.clearAll();
+                QuickNotes.toggle();
+                break;
             case "launcher": toggleLauncher(); break;
             case "projects":
             case "project-picker":
@@ -93,15 +114,66 @@ Singleton {
             case "dashboard-controls":
                 toggleSettings();
                 break;
+            case "appearance":
+                if (!GlobalStates.settingsWindowVisible)
+                    toggleSettings();
+                GlobalStates.settingsCurrentTab = 4;
+                break;
+            case "new-window-rule":
+                if (!GlobalStates.settingsWindowVisible)
+                    toggleSettings();
+                GlobalStates.settingsCurrentTab = 8;
+                GlobalStates.settingsNewWindowRuleRequested = true;
+                break;
             default: console.warn("Unknown IPC command:", command);
         }
     }
 
     property IpcHandler ipcHandler: IpcHandler {
-        target: "nonchalant"
+        target: "rebos_shell"
 
         function run(command: string) {
             root.run(command);
+        }
+
+        function wallpaper(path: string, mode: string): bool {
+            const manager = GlobalStates.wallpaperManager;
+            if (!manager || !path || manager.supportedWallpaperModes.indexOf(mode) === -1)
+                return false;
+            manager.setWallpaperMode(mode);
+            manager.setWallpaper(path);
+            return true;
+        }
+
+        function themeStyle(style: string): bool {
+            if (!ShellStyles.styles.some(entry => entry.id === style)) return false;
+            Config.theme.shellStyle = style;
+            return true;
+        }
+
+        function borderStyle(style: string): bool {
+            if (["band", "dotted", "double"].indexOf(style) === -1) return false;
+            Config.theme.ditherBorder = style;
+            return true;
+        }
+
+        function wallpaperDitherStrength(strength: string): bool {
+            if (["normal", "strong", "intense"].indexOf(strength) === -1) return false;
+            Config.theme.wallpaperDitherStrength = strength;
+            return true;
+        }
+
+        function themeStatus(): string {
+            const manager = GlobalStates.wallpaperManager;
+            return JSON.stringify({style: Config.theme.shellStyle,
+                ditherPalette: Config.theme.ditherPalette,
+                border: Config.theme.ditherBorder,
+                wallpaperStrength: Config.theme.wallpaperDitherStrength,
+                wallpaper: manager?.currentWallpaper ?? "",
+                renderedWallpaper: manager?.renderedWallpaper ?? "",
+                themeColorSource: manager ? manager.getColorSource(manager.currentWallpaper) : "",
+                converting: DitheredWallpapers.busy,
+                error: DitheredWallpapers.error});
         }
     }
 

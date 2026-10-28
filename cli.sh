@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Nonchalant Shell CLI - It was needed, so here it is. lol
+# rebos_shell CLI - It was needed, so here it is. lol
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Use environment variables if set by flake, otherwise fall back to PATH
-QS_BIN="${NONCHALANT_QS:-qs}"
-NIXGL_BIN="${NONCHALANT_NIXGL:-}"
+QS_BIN="${REBOS_SHELL_QS:-${SCRIPT_DIR}/scripts/qs-screen-guard}"
+NIXGL_BIN="${REBOS_SHELL_NIXGL:-}"
 
 # If QML2_IMPORT_PATH is set (by wrapper or dev shell), ensure QML_IMPORT_PATH matches
 
@@ -17,8 +17,8 @@ fi
 
 # Ensure config files exist - copy from preset if missing
 ensure_config_files() {
-	local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/nonchalant/config"
-	local preset_dir="${SCRIPT_DIR}/assets/presets/Nonchalant Default"
+	local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/rebos_shell/config"
+	local preset_dir="${SCRIPT_DIR}/assets/presets/rebos_shell Default"
 
 	# Create config directory if it doesn't exist
 	mkdir -p "$config_dir"
@@ -34,13 +34,13 @@ ensure_config_files
 
 show_help() {
 	cat <<EOF
-Nonchalant Shell CLI - Desktop Environment Control
+rebos_shell CLI - Desktop Environment Control
 
-Usage: nonchalant [COMMAND]
+Usage: rebos_shell [COMMAND]
 
 Commands:
-    (none)                            Launch Nonchalant Shell
-    update                            Update Nonchalant Shell
+    (none)                            Launch rebos_shell
+    update                            Update rebos_shell
     refresh                           Refresh local/dev profile (for developers)
     lock                              Activate lockscreen
     run <command>                     Send a shell command (e.g. wallpapers)
@@ -50,22 +50,22 @@ Commands:
     brightness -r [monitor]           Restore saved brightness
     brightness -l                     List monitors and their brightness
     help                              Show this help message
-    version, -v, --version            Show Nonchalant Shell version
-    goodbye                           Uninstall Nonchalant Shell :(
+    version, -v, --version            Show rebos_shell version
+    goodbye                           Uninstall rebos_shell :(
 
 Examples:
-    nonchalant brightness 75              Set all monitors to 75%
-    nonchalant brightness 50 HDMI-A-1     Set HDMI-A-1 to 50%
-    nonchalant brightness +10             Increase brightness by 10%
-    nonchalant brightness -5 HDMI-A-1     Decrease HDMI-A-1 brightness by 5%
-    nonchalant brightness 10 -s           Save current, then set all to 10%
-    nonchalant brightness -s HDMI-A-1     Save current brightness of HDMI-A-1
-    nonchalant brightness -r              Restore saved brightness
+    rebos_shell brightness 75              Set all monitors to 75%
+    rebos_shell brightness 50 HDMI-A-1     Set HDMI-A-1 to 50%
+    rebos_shell brightness +10             Increase brightness by 10%
+    rebos_shell brightness -5 HDMI-A-1     Decrease HDMI-A-1 brightness by 5%
+    rebos_shell brightness 10 -s           Save current, then set all to 10%
+    rebos_shell brightness -s HDMI-A-1     Save current brightness of HDMI-A-1
+    rebos_shell brightness -r              Restore saved brightness
 
 EOF
 }
 
-find_nonchalant_pid() {
+find_rebos_shell_pid() {
 	local pid
 
 	# Ask Quickshell first. Broad pgrep patterns can match this CLI's own
@@ -86,9 +86,9 @@ find_nonchalant_pid() {
 	echo "$pid"
 }
 
-find_nonchalant_pid_cached() {
+find_rebos_shell_pid_cached() {
 	# Optimized PID lookup: check cache file first, then fall back to pgrep
-	local pid_file="${XDG_RUNTIME_DIR:-/tmp}/nonchalant-$UID.pid"
+	local pid_file="${XDG_RUNTIME_DIR:-/tmp}/rebos_shell-$UID.pid"
 	local pid=""
 
 	# Check if cache file exists and process is alive
@@ -104,21 +104,21 @@ find_nonchalant_pid_cached() {
 	fi
 
 	# Fallback: use expensive pgrep search
-	pid=$(find_nonchalant_pid)
+	pid=$(find_rebos_shell_pid)
 	echo "$pid"
 }
 
-restart_nonchalant() {
-	PID=$(find_nonchalant_pid_cached)
+restart_rebos_shell() {
+	PID=$(find_rebos_shell_pid_cached)
 	if [ -n "$PID" ]; then
-		echo "Stopping Nonchalant (PID $PID)..."
+		echo "Stopping rebos_shell (PID $PID)..."
 		kill "$PID"
 		# Wait for process to exit
 		while kill -0 "$PID" 2>/dev/null; do
 			sleep 0.1
 		done
 	fi
-	echo "Starting Nonchalant..."
+	echo "Starting rebos_shell..."
 	# Relaunch the script in background
 	nohup "$0" >/dev/null 2>&1 &
 }
@@ -129,12 +129,12 @@ update)
 	exit 0
 	;;
 refresh)
-	echo "Refreshing Nonchalant profile..."
-	exec nix profile upgrade Nonchalant --refresh --impure
+	echo "Refreshing rebos_shell profile..."
+	exec nix profile upgrade rebos_shell --refresh --impure
 	;;
 run)
 	CMD="${2:-}"
-	PIPE="${XDG_RUNTIME_DIR:-/tmp}/nonchalant_ipc_$UID.pipe"
+	PIPE="${XDG_RUNTIME_DIR:-/tmp}/rebos_shell_ipc_$UID.pipe"
 
 
 	if [ -z "$CMD" ]; then
@@ -149,38 +149,38 @@ run)
 	fi
 
 	# Fallback path: Use QS IPC with cached PID lookup
-	PID=$(find_nonchalant_pid_cached)
+	PID=$(find_rebos_shell_pid_cached)
 	if [ -z "$PID" ]; then
-		echo "Error: Nonchalant is not running"
+		echo "Error: rebos_shell is not running"
 		exit 1
 	fi
 
-	qs ipc --pid "$PID" call nonchalant run "$CMD" 2>/dev/null || {
+	qs ipc --pid "$PID" call rebos_shell run "$CMD" 2>/dev/null || {
 		echo "Error: Could not run command '$CMD'"
 		exit 1
 	}
 	;;
 lock)
-	PID=$(find_nonchalant_pid_cached)
+	PID=$(find_rebos_shell_pid_cached)
 	if [ -z "$PID" ]; then
-		echo "Error: Nonchalant is not running"
+		echo "Error: rebos_shell is not running"
 		exit 1
 	fi
-	qs ipc --pid "$PID" call nonchalant run lockscreen 2>/dev/null || {
+	qs ipc --pid "$PID" call rebos_shell run lockscreen 2>/dev/null || {
 		echo "Error: Could not activate lockscreen"
 		exit 1
 	}
 	;;
 reload)
-	restart_nonchalant
+	restart_rebos_shell
 	;;
 quit)
-	PID=$(find_nonchalant_pid_cached)
+	PID=$(find_rebos_shell_pid_cached)
 	if [ -n "$PID" ]; then
-		echo "Stopping Nonchalant (PID $PID)..."
+		echo "Stopping rebos_shell (PID $PID)..."
 		kill "$PID"
 	else
-		echo "Nonchalant is not running"
+		echo "rebos_shell is not running"
 	fi
 	;;
 screen)
@@ -189,7 +189,7 @@ screen)
 	off) NIRI_ACTION="power-off-monitors" ;;
 	on) NIRI_ACTION="power-on-monitors" ;;
 	*)
-		echo "Usage: nonchalant screen [on|off]"
+		echo "Usage: rebos_shell screen [on|off]"
 		exit 1
 		;;
 	esac
@@ -215,13 +215,13 @@ suspend)
 	fi
 	;;
 brightness)
-	PID=$(find_nonchalant_pid_cached)
+	PID=$(find_rebos_shell_pid_cached)
 	if [ -z "$PID" ]; then
-		echo "Error: Nonchalant is not running"
+		echo "Error: rebos_shell is not running"
 		exit 1
 	fi
 
-	BRIGHTNESS_SAVE_FILE="${XDG_RUNTIME_DIR:-/tmp}/nonchalant_brightness_saved_$UID.txt"
+	BRIGHTNESS_SAVE_FILE="${XDG_RUNTIME_DIR:-/tmp}/rebos_shell_brightness_saved_$UID.txt"
 
 
 	# Parse arguments
@@ -347,7 +347,7 @@ brightness)
 		exit 0
 	else
 		echo "Error: Invalid brightness value. Must be 0-100 or +/-delta."
-		echo "Run 'nonchalant help' for usage information"
+		echo "Run 'rebos_shell help' for usage information"
 		exit 1
 	fi
 
@@ -436,11 +436,11 @@ brightness)
 	fi
 	;;
 version | -v | --version)
-	echo "Nonchalant $(cat "${SCRIPT_DIR}/version")"
+	echo "rebos_shell $(cat "${SCRIPT_DIR}/version")"
 	;;
 
 goodbye)
-	echo "Uninstalling Nonchalant..."
+	echo "Uninstalling rebos_shell..."
 
 	read -p "Are you sure? (y/N): " -n 1 -r
 	echo
@@ -450,13 +450,13 @@ goodbye)
 	fi
 
 	if [ -f /etc/NIXOS ]; then
-		if nix profile list 2>/dev/null | grep -q "Nonchalant"; then
+		if nix profile list 2>/dev/null | grep -q "rebos_shell"; then
 			echo "Removing from nix profile..."
-			nix profile remove Nonchalant
-		elif command -v nonchalant >/dev/null 2>&1; then
-			echo "Nonchalant was declared in this system. Please remove it from your configuration in order to uninstall."
+			nix profile remove rebos_shell
+		elif command -v rebos_shell >/dev/null 2>&1; then
+			echo "rebos_shell was declared in this system. Please remove it from your configuration in order to uninstall."
 		else
-			echo "Nonchalant is not installed."
+			echo "rebos_shell is not installed."
 		fi
 		exit 0
 	fi
@@ -468,16 +468,16 @@ goodbye)
 		REMOVE_CONFIG=true
 	fi
 
-	rm -rf "$HOME/.local/src/nonchalant"
-	rm -rf "$HOME/.local/share/nonchalant"
-	rm -rf "$HOME/.local/state/nonchalant"
+	rm -rf "$HOME/.local/src/rebos_shell"
+	rm -rf "$HOME/.local/share/rebos_shell"
+	rm -rf "$HOME/.local/state/rebos_shell"
 
 	if [ "$REMOVE_CONFIG" = true ]; then
-		rm -rf "$HOME/.config/nonchalant"
+		rm -rf "$HOME/.config/rebos_shell"
 		echo "Configuration files removed."
 	fi
 
-	echo "Nonchalant uninstalled. :("
+	echo "rebos_shell uninstalled. :("
 	;;
 help | --help | -h)
 	show_help
@@ -497,7 +497,7 @@ help | --help | -h)
 	export QT_QPA_PLATFORMTHEME=qt6ct
 
 	# Cache this script's PID before exec (for fast PID lookups in future CLI calls)
-	echo $$ >"${XDG_RUNTIME_DIR:-/tmp}/nonchalant-$UID.pid"
+	echo $$ >"${XDG_RUNTIME_DIR:-/tmp}/rebos_shell-$UID.pid"
 
 	# Launch QuickShell with the main shell.qml
 	# If NIXGL_BIN is set (NixOS/Nix setup), use it. Otherwise, just run qs directly.
@@ -510,7 +510,7 @@ help | --help | -h)
 
 *)
 	echo "Error: Unknown command '$1'"
-	echo "Run 'nonchalant help' for usage information"
+	echo "Run 'rebos_shell help' for usage information"
 	exit 1
 	;;
 esac

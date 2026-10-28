@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland._BackgroundEffect
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.modules.theme
@@ -237,6 +238,11 @@ Item {
 
     PopupWindow {
         id: modeListPopup
+        BackgroundEffect.blurRegion: Region {
+            width: modeListPopup.width
+            height: modeListPopup.height
+            radius: Styling.radius(-12)
+        }
         anchor.item: modeButton
         anchor.rect.x: 0
         anchor.rect.y: modeButton.height + 4

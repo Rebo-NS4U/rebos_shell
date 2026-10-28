@@ -1,7 +1,7 @@
 # COMPONENTS KNOWLEDGE BASE
 
 ## OVERVIEW
-Atomic design library for Nonchalant Shell. Every themed container in the shell ultimately uses `StyledRect`. Components enforce theme reactivity, native font rendering, and strong typing.
+Atomic design library for rebos_shell. Every themed container in the shell ultimately uses `StyledRect`. Components enforce theme reactivity, native font rendering, and strong typing.
 
 ## STRUCTURE
 ### Layout & Containers

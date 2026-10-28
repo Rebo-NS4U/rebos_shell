@@ -66,37 +66,37 @@ Item {
     Behavior on animatedProgress {
         enabled: root.smoothDrag && Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
 
     Behavior on wavyAmplitude {
         enabled: Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
     Behavior on wavyFrequency {
         enabled: Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
     Behavior on heightMultiplier {
         enabled: Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
     Behavior on size {
         enabled: Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
 
@@ -118,8 +118,8 @@ Item {
             Behavior on opacity {
                 enabled: Config.animDuration > 0
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Motion.feedback
+                    easing.type: Motion.feedbackCurve
                 }
             }
 
@@ -135,15 +135,15 @@ Item {
                 Behavior on width {
                     enabled: root.smoothDrag
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
                 Behavior on height {
                     enabled: root.smoothDrag
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
             }
@@ -216,8 +216,8 @@ Item {
             Behavior on opacity {
                 enabled: Config.animDuration > 0
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Motion.feedback
+                    easing.type: Motion.feedbackCurve
                 }
             }
 
@@ -233,15 +233,15 @@ Item {
                 Behavior on width {
                     enabled: root.smoothDrag
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
                 Behavior on height {
                     enabled: root.smoothDrag
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
             }

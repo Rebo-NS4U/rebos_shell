@@ -15,7 +15,7 @@ Item {
 
     property bool expanded: false
 
-    implicitHeight: contentColumn.implicitHeight + 16  // 8px margins top + bottom
+    implicitHeight: contentColumn.implicitHeight + 32  // 8px margins top + bottom
 
     Behavior on implicitHeight {
         enabled: Config.animDuration > 0
@@ -30,7 +30,9 @@ Item {
     StyledRect {
         anchors.fill: parent
         variant: mouseArea.containsMouse ? "focus" : root.baseVariant
-        radius: Styling.radius(4)
+        radius: Styling.radius(-2)
+        border.width: 1
+        border.color: Qt.alpha(Colors.outline, 0.3)
     }
 
     MouseArea {
@@ -45,9 +47,9 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
-        anchors.topMargin: 8
+        anchors.leftMargin: 16
+        anchors.rightMargin: 16
+        anchors.topMargin: 16
         spacing: 8
 
         // Main row with device info
@@ -221,6 +223,7 @@ Item {
             // Connect/Disconnect button
             Button {
                 id: actionButton
+                enabled: !(root.device?.connecting ?? false) && !BluetoothService.isUpdating
                 flat: true
                 implicitWidth: 100
                 implicitHeight: 32
@@ -231,7 +234,7 @@ Item {
                 }
 
                 contentItem: Text {
-                    text: root.device?.connected ? "Disconnect" : "Connect"
+                    text: root.device?.connecting ? "Connecting..." : (root.device?.connected ? "Disconnect" : (root.device?.paired ? "Connect" : "Pair"))
                     font.family: Config.theme.font
                     font.pixelSize: Styling.fontSize(-1)
                     color: root.device?.connected ? Colors.overSurfaceVariant : Styling.srItem("primary")

@@ -10,7 +10,7 @@ import qs.config
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
 
     component ActionRow: StyledRect {
@@ -39,7 +39,7 @@ Item {
             anchors.rightMargin: 12
             spacing: 10
 
-            Text {
+            StyledText {
                 text: action.icon
                 font.family: Icons.font
                 font.pixelSize: 16
@@ -49,7 +49,7 @@ Item {
                 Layout.preferredWidth: 20
             }
 
-            Text {
+            StyledText {
                 text: action.label
                 font.family: Config.theme.font
                 font.pixelSize: Styling.fontSize(-1)
@@ -59,7 +59,7 @@ Item {
                 Layout.fillWidth: true
             }
 
-            Text {
+            StyledText {
                 visible: action.selected
                 text: Icons.accept
                 font.family: Icons.font

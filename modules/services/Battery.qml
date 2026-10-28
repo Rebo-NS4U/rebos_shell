@@ -14,7 +14,7 @@ Singleton {
     readonly property bool available: primaryDevice !== null && primaryDevice.type === UPowerDevice.Battery
     readonly property real percentage: available ? (primaryDevice.percentage * 100) : 0
     readonly property bool isCharging: available && primaryDevice.state === UPowerDevice.Charging
-    readonly property bool isPluggedIn: available && (primaryDevice.state === UPowerDevice.Charging || primaryDevice.state === UPowerDevice.FullyCharged)
+    readonly property bool isPluggedIn: available && !UPower.onBattery
     readonly property real percent: percentage
     readonly property bool charging: isPluggedIn
     readonly property int chargeState: available ? primaryDevice.state : UPowerDevice.Unknown
@@ -60,41 +60,56 @@ Singleton {
     function evaluateBatteryAlert() {
         if (!available || isPluggedIn) {
             lastBatteryAlertThreshold = 0;
+            clearBatteryAlert();
             return;
         }
 
-        const roundedPercentage = Math.floor(percentage);
-        const threshold = roundedPercentage <= 10 ? 10 : (roundedPercentage <= 20 ? 20 : 0);
-        if (threshold === 0) {
+        // Rearm only after recovery, so noisy readings cannot repeat a warning.
+        if (percentage > 22) {
             lastBatteryAlertThreshold = 0;
+            clearBatteryAlert();
             return;
         }
 
-        if (threshold === lastBatteryAlertThreshold) {
+        const threshold = percentage <= 2 ? 2 : percentage <= 5 ? 5 : percentage <= 10 ? 10 : percentage <= 20 ? 20 : 0;
+        if (threshold === 0 || (lastBatteryAlertThreshold !== 0 && threshold >= lastBatteryAlertThreshold)) {
             return;
         }
 
-        sendBatteryAlert(threshold, roundedPercentage);
+        sendBatteryAlert(threshold, Math.round(percentage));
         lastBatteryAlertThreshold = threshold;
     }
 
+    function clearBatteryAlert() {
+        const ids = Notifications.list.filter(notif => notif && notif.replaceKey === "battery-low-alert").map(notif => notif.id);
+        if (ids.length > 0)
+            Notifications.discardNotifications(ids);
+    }
+
     function sendBatteryAlert(threshold, roundedPercentage) {
-        const isCritical = threshold <= 10;
+        const isCritical = threshold <= 5;
+        const title = threshold <= 2 ? "Critical battery" : threshold <= 5 ? "Battery almost empty" : threshold <= 10 ? "Very low battery" : "Low battery";
+        const advice = threshold <= 2 ? "Plug in now. Save your work immediately; power may run out at any moment."
+            : threshold <= 5 ? "Connect your charger now and save your work."
+            : threshold <= 10 ? "Connect your charger soon. Power saver can help you last longer."
+            : "Consider connecting your charger or enabling power saver.";
+        const remaining = timeToEmpty !== "" ? " About " + timeToEmpty + " remaining." : "";
+        const actions = [];
+        if (PowerProfile.currentProfile !== "power-saver")
+            actions.push({ "identifier": "enable-power-saver", "text": "Enable power saver" });
+        actions.push({ "identifier": "dismiss", "text": "Dismiss" });
+
         Notifications.notifyInternal({
             "appName": "Battery",
-            "summary": isCritical ? "Critical battery" : "Low battery",
-            "body": "Battery is at " + roundedPercentage + "%." + (isCritical ? " Connect your charger or enable power saver." : " Enable power saver to reduce consumption."),
-            "urgency": NotificationUrgency.Critical,
+            "appIcon": isCritical ? "battery-empty-symbolic" : "battery-caution-symbolic",
+            "summary": title + " · " + roundedPercentage + "%",
+            "body": advice + remaining,
+            "urgency": isCritical ? NotificationUrgency.Critical : NotificationUrgency.Normal,
             "historyPriority": 100,
             "replaceKey": "battery-low-alert",
-            "expireTimeout": 10000,
-            "actions": [{
-                    "identifier": "enable-power-saver",
-                    "text": "Power saver"
-                }, {
-                    "identifier": "dismiss",
-                    "text": "Ignore"
-                }],
+            // Negative intervals keep critical warnings visible until dismissed.
+            "expireTimeout": isCritical ? -1 : (threshold <= 10 ? 15000 : 10000),
+            "actions": actions,
             "actionHandlers": {
                 "enable-power-saver": function () {
                     PowerProfile.setProfile("power-saver");
@@ -110,11 +125,15 @@ Singleton {
         target: root
 
         function onPercentageChanged() {
-            root.evaluateBatteryAlert();
+            Qt.callLater(root.evaluateBatteryAlert);
         }
 
         function onIsPluggedInChanged() {
-            root.evaluateBatteryAlert();
+            Qt.callLater(root.evaluateBatteryAlert);
+        }
+
+        function onAvailableChanged() {
+            Qt.callLater(root.evaluateBatteryAlert);
         }
     }
 

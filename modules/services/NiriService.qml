@@ -11,6 +11,8 @@ Singleton {
     property var focusedMonitor: null
     property var focusedWorkspace: null
     property var focusedClient: null
+    // Keep the app target when the Settings window takes keyboard focus.
+    property var lastExternalFocusedClient: null
 
     // Niri compositor overview (Mod+Tab). The bar should hide while this is open.
     property bool overviewOpen: false
@@ -243,6 +245,10 @@ Singleton {
         root.focusedWorkspace = workspaceValues.find(workspace => workspace.focused) ?? workspaceValues.find(workspace => workspace.active) ?? null;
         root.focusedMonitor = monitorValues.find(monitor => monitor.focused) ?? (root.focusedWorkspace ? monitorFor(root.focusedWorkspace.output) : null);
         root.focusedClient = clientValues.find(client => client.is_focused) ?? null;
+        if (root.focusedClient
+                && root.focusedClient.title !== "rebos_shell Settings"
+                && !/^(quickshell|org\.quickshell)([.:].*)?$/i.test(root.focusedClient.appId))
+            root.lastExternalFocusedClient = root.focusedClient;
 
         root.fullscreenOutputs = fullscreenOutputs;
     }
@@ -298,7 +304,7 @@ Singleton {
         } else if (event.WindowOpenedOrChanged) {
             const changed = event.WindowOpenedOrChanged.window;
             const exists = root.rawWindows.some(window => Number(window.id) === Number(changed.id));
-            root.rawWindows = exists
+            const updatedWindows = exists
                 ? root.rawWindows.map(window => {
                     if (Number(window.id) !== Number(changed.id))
                         return window;
@@ -308,6 +314,13 @@ Singleton {
                     return merged;
                 })
                 : root.rawWindows.concat([changed]);
+            // Opening or updating a focused window can be the only focus
+            // notification. Clear the previous focus in the same update.
+            root.rawWindows = changed.is_focused === true
+                ? updatedWindows.map(window => Object.assign({}, window, {
+                    is_focused: Number(window.id) === Number(changed.id)
+                }))
+                : updatedWindows;
         } else if (event.WindowClosed) {
             const closedId = Number(event.WindowClosed.id);
             root.rawWindows = root.rawWindows.filter(window => Number(window.id) !== closedId);

@@ -7,6 +7,7 @@ import qs.modules.components
 import qs.modules.globals
 import qs.modules.services
 import qs.config
+import "WallpaperFolders.js" as WallpaperFolders
 
 // Componente principal para el selector de fondos de pantalla.
 FocusScope {
@@ -14,6 +15,15 @@ FocusScope {
 
     // Propiedades personalizadas para la funcionalidad del componente.
     property string searchText: ""
+    property string selectedFolder: "*"
+    readonly property list<var> wallpaperFolders: WallpaperFolders.groups(
+        GlobalStates.wallpaperManager?.wallpaperPaths ?? [],
+        GlobalStates.wallpaperManager?.wallpaperDir ?? "")
+
+    onWallpaperFoldersChanged: {
+        if (!wallpaperFolders.some(folder => folder.id === selectedFolder))
+            selectedFolder = "*";
+    }
     property int selectedIndex: GlobalStates.wallpaperSelectedIndex
 
     // Función para actualizar el índice seleccionado de forma centralizada
@@ -56,6 +66,20 @@ FocusScope {
                 perScreenCheckboxContainer.keyboardNavigationActive = true;
                 perScreenCheckbox.forceActiveFocus();
             }
+        },
+        {
+            id: "folderSelector",
+            focusFunc: function () {
+                folderSelector.forceActiveFocus();
+            }
+        },
+        {
+            id: "colorSelector",
+            focusFunc: function () { wallpaperColorControls.focusColor(); }
+        },
+        {
+            id: "sortSelector",
+            focusFunc: function () { wallpaperColorControls.focusSort(); }
         },
         {
             id: "wallpaperModeSelector",
@@ -162,7 +186,14 @@ FocusScope {
 
     // Llama a focusSearch una vez que el componente se ha completado.
     Component.onCompleted: {
-        centerTimer.start();
+        Qt.callLater(() => {
+            const manager = GlobalStates.wallpaperManager;
+            const current = manager?.perScreenWallpapers?.[currentScreenName] ?? manager?.currentWallpaper ?? "";
+            const directory = WallpaperFolders.parentDirectory(current);
+            if (wallpaperFolders.some(folder => folder.id === directory))
+                selectedFolder = directory;
+            centerTimer.start();
+        });
     }
 
     // Actualizar subcarpetas cuando la pestaña se haga visible
@@ -210,21 +241,17 @@ FocusScope {
     }
 
     // Propiedad calculada que filtra los fondos de pantalla según el texto de búsqueda.
-    property var filteredWallpapers: {
-        if (!GlobalStates.wallpaperManager)
-            return [];
+    readonly property list<string> filteredWallpapers: wallpaperColorControls.arrangedPaths
 
-        let wallpapers = GlobalStates.wallpaperManager.wallpaperPaths;
-
-        // Filtrar por texto de búsqueda
-        if (searchText.length > 0) {
-            wallpapers = wallpapers.filter(function (path) {
-                const fileName = path.split('/').pop().toLowerCase();
-                return fileName.includes(searchText.toLowerCase());
-            });
-        }
-
-        return wallpapers;
+    onFilteredWallpapersChanged: {
+        const current = findCurrentWallpaperIndex();
+        setSelectedIndex(filteredWallpapers.length > 0 ? (current >= 0 ? current : 0) : -1);
+        Qt.callLater(() => {
+            if (selectedIndex >= 0)
+                wallpaperGrid.positionViewAtIndex(selectedIndex, GridView.Contain);
+            else
+                wallpaperGrid.contentY = 0;
+        });
     }
 
     ColumnLayout {
@@ -282,11 +309,6 @@ FocusScope {
                 // Manejo de eventos de búsqueda y teclado.
                 onSearchTextChanged: text => {
                     searchText = text;
-                    if (text.length > 0 && filteredWallpapers.length > 0) {
-                        setSelectedIndex(0);
-                    } else {
-                        setSelectedIndex(-1);
-                    }
                 }
 
                 onEscapePressed: {
@@ -482,8 +504,7 @@ FocusScope {
                                             enabled: Config.animDuration > 0
                                             NumberAnimation {
                                                 duration: Config.animDuration / 2
-                                                easing.type: Easing.OutBack
-                                                easing.overshoot: 1.5
+                                                easing.type: Motion.enterCurve
                                             }
                                         }
                                     }
@@ -566,6 +587,59 @@ FocusScope {
                     wallpapersTabRoot.focusPreviousElement();
                 }
             }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Styling.fontSize(-3)
+            StyledText {
+                text: "Folder"
+                color: Colors.overSurfaceVariant
+            }
+            WallpaperChoice {
+                id: folderSelector
+                objectName: "wallpaper-folder-selector"
+                Layout.fillWidth: true
+                model: wallpapersTabRoot.wallpaperFolders
+                textRole: "display"
+                valueRole: "id"
+                currentIndex: wallpapersTabRoot.wallpaperFolders.findIndex(folder => folder.id === wallpapersTabRoot.selectedFolder)
+                onActivated: wallpapersTabRoot.selectedFolder = currentValue
+                onActiveFocusChanged: {
+                    if (activeFocus)
+                        wallpapersTabRoot.currentFocusIndex = 1;
+                }
+                Keys.onEscapePressed: event => {
+                    wallpapersTabRoot.focusSearch();
+                    event.accepted = true;
+                }
+                Keys.onTabPressed: event => {
+                    wallpapersTabRoot.focusNextElement();
+                    event.accepted = true;
+                }
+                Keys.onBacktabPressed: event => {
+                    wallpapersTabRoot.focusPreviousElement();
+                    event.accepted = true;
+                }
+                StyledToolTip {
+                    show: folderHover.hovered
+                    tooltipText: wallpapersTabRoot.selectedFolder === "*" ? "Browse every folder" : wallpapersTabRoot.selectedFolder
+                }
+                HoverHandler { id: folderHover }
+            }
+        }
+        WallpaperColorControls {
+            id: wallpaperColorControls
+            Layout.fillWidth: true
+            directory: GlobalStates.wallpaperManager?.wallpaperDir ?? ""
+            paths: WallpaperFolders.filter(GlobalStates.wallpaperManager?.wallpaperPaths ?? [],
+                                           wallpapersTabRoot.selectedFolder, wallpapersTabRoot.searchText)
+        }
+        StyledText {
+            Layout.fillWidth: true
+            visible: wallpapersTabRoot.filteredWallpapers.length === 0
+            text: wallpaperColorControls.indexing ? "Finding wallpaper colors…" : "No wallpapers match these filters."
+            color: Colors.overSurfaceVariant
         }
 
         // Grid de wallpapers

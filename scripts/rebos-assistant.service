@@ -1,0 +1,12 @@
+[Unit]
+Description=Persistent assistant for rebos_shell
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.config/quickshell/scripts/ai_bridge.py --server
+Restart=on-failure
+RestartSec=2
+RuntimeDirectory=rebos-assistant
+RuntimeDirectoryMode=0700
+UMask=0077
+TimeoutStopSec=10

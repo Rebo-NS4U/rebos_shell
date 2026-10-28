@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 run_tests.py
-Master test runner for Nonchalant Shell Dynamic Island test suite.
+Master test runner for rebos_shell Dynamic Island test suite.
 Executes QML syntax verification, config schema tests, and Tiers 1-4.
 """
 
@@ -143,7 +143,7 @@ def print_summary_table(collector: TestResultCollector):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Nonchalant Shell Dynamic Island Test Runner")
+    parser = argparse.ArgumentParser(description="rebos_shell Dynamic Island Test Runner")
     parser.add_argument("--all", action="store_true", help="Run all test tiers, schema, and qmllint")
     parser.add_argument("--tier1", action="store_true", help="Run Tier 1: Feature Coverage tests")
     parser.add_argument("--tier2", action="store_true", help="Run Tier 2: Boundary & Corner Cases")

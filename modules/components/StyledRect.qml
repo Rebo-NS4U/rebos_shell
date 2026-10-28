@@ -12,6 +12,10 @@ ClippingRectangle {
     contentUnderBorder: true
 
     required property string variant
+    property string styleOverride: ""
+    // Color samples need their exact fill, without a surface shader over it.
+    property color fillColor: "transparent"
+    readonly property bool hasFillColor: fillColor.a > 0
 
     property string gradientOrientation: "vertical"
     property bool enableShadow: false
@@ -19,7 +23,7 @@ ClippingRectangle {
     property bool animateRadius: true
     property real backgroundOpacity: -1  // -1 means use config value
 
-    readonly property var variantConfig: Styling.getStyledRectConfig(variant) || {}
+    readonly property var variantConfig: Styling.styleConfig(styleOverride || Styling.shellStyle, variant) || {}
 
     readonly property var gradientStops: variantConfig.gradient
 
@@ -52,6 +56,11 @@ ClippingRectangle {
     property color item: itemColor
 
     readonly property real rectOpacity: backgroundOpacity >= 0 ? backgroundOpacity : variantConfig.opacity
+    readonly property bool usesDitherGrid: (styleOverride || Styling.shellStyle) === "dithered"
+        && Config.theme.ditherStrength > 0
+    readonly property real ditherCellSize: Styling.ditherCellSize
+    readonly property bool ditheredOutline: usesDitherGrid
+        && enableBorder && border.width > 0 && border.color.a > 0
 
     // Check if gradient is actually a single color (optimization: treat as solid)
     readonly property bool isSingleColorGradient: gradientStops && gradientStops.length === 1
@@ -96,6 +105,7 @@ ClippingRectangle {
     // Color priority: single-color gradient > explicit solid color > transparent (for real gradients)
     // Apply rectOpacity via alpha channel to avoid affecting children
     color: {
+        if (hasFillColor) return applyOpacity(fillColor, rectOpacity);
         if (isSingleColorGradient && (gradientType === "linear" || gradientType === "radial")) {
             return applyOpacity(singleGradientColor, rectOpacity);
         }
@@ -108,14 +118,14 @@ ClippingRectangle {
     Behavior on radius {
         enabled: root.animateRadius && Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration / 4
+            duration: Motion.press
         }
     }
 
     // Linear gradient - procedural (no texture)
     Loader {
         anchors.fill: parent
-        active: root.gradientType === "linear" && root.needsGradientShader
+        active: !root.hasFillColor && root.gradientType === "linear" && root.needsGradientShader
 
         sourceComponent: ShaderEffect {
             opacity: root.rectOpacity
@@ -145,7 +155,7 @@ ClippingRectangle {
     // Radial gradient - procedural (no texture)
     Loader {
         anchors.fill: parent
-        active: root.gradientType === "radial" && root.needsGradientShader
+        active: !root.hasFillColor && root.gradientType === "radial" && root.needsGradientShader
 
         sourceComponent: ShaderEffect {
             opacity: root.rectOpacity
@@ -176,7 +186,7 @@ ClippingRectangle {
     // Halftone gradient - no texture needed, purely procedural
     Loader {
         anchors.fill: parent
-        active: root.gradientType === "halftone"
+        active: !root.hasFillColor && root.gradientType === "halftone" && !root.usesDitherGrid
 
         sourceComponent: ShaderEffect {
             opacity: root.rectOpacity
@@ -187,11 +197,11 @@ ClippingRectangle {
             property real gradientStart: root.halftoneStart
             property real gradientEnd: root.halftoneEnd
             property vector4d dotColor: {
-                const c = root.halftoneDotColor || Qt.rgba(1, 1, 1, 1);
+                const c = root.halftoneDotColor || Colors.surface;
                 return Qt.vector4d(c.r, c.g, c.b, c.a);
             }
             property vector4d backgroundColor: {
-                const c = root.halftoneBackgroundColor || Qt.rgba(0, 0.5, 1, 1);
+                const c = root.halftoneBackgroundColor || Colors.background;
                 return Qt.vector4d(c.r, c.g, c.b, c.a);
             }
             property real canvasWidth: width
@@ -199,6 +209,23 @@ ClippingRectangle {
 
             vertexShader: "halftone.vert.qsb"
             fragmentShader: "halftone.frag.qsb"
+        }
+    }
+
+    // The preset shares one fixed-pixel grid with the outline shader. Custom
+    // halftone gradients retain their independent renderer and saved settings.
+    Loader {
+        anchors.fill: parent
+        active: !root.hasFillColor && root.gradientType === "halftone" && root.usesDitherGrid
+        sourceComponent: ShaderEffect {
+            objectName: "dithered-fill"
+            opacity: root.rectOpacity
+            property vector2d size: Qt.vector2d(width, height)
+            property real cellSize: root.ditherCellSize
+            property color dotColor: root.halftoneDotColor
+            property color baseColor: root.halftoneBackgroundColor
+            vertexShader: "dither_fill.vert.qsb"
+            fragmentShader: "dither_fill.frag.qsb"
         }
     }
 
@@ -210,4 +237,34 @@ ClippingRectangle {
 
     border.color: Config.resolveColor(borderData?.[0] ?? "transparent")
     border.width: root.enableBorder ? (borderData?.[1] ?? 0) : 0
+
+    // Parent directly to the root: ClippingRectangle composites its native
+    // border above its contentItem, so a normal child cannot replace that line.
+    // This ring is drawn above the border without capturing any text again.
+    Loader {
+        parent: root
+        anchors.fill: parent
+        z: 100
+        active: root.ditheredOutline && root.visible && width > 0 && height > 0
+        sourceComponent: ShaderEffect {
+            objectName: "dithered-outline"
+            property vector2d size: Qt.vector2d(width, height)
+            property vector4d corners: Qt.vector4d(root.topLeftRadius, root.topRightRadius,
+                root.bottomLeftRadius, root.bottomRightRadius)
+            property real strokeWidth: Config.theme.ditherBorder === "band" ? Styling.ditherEdgeWidth
+                : Config.theme.ditherBorder === "double"
+                ? root.border.width : Math.max(root.border.width, root.ditherCellSize)
+            property real nativeStrokeWidth: root.border.width
+            property real cellSize: root.ditherCellSize
+            property color edgeColor: root.border.color
+            property color baseColor: root.halftoneBackgroundColor
+            property color surfaceDotColor: root.gradientType === "halftone"
+                ? root.halftoneDotColor : root.halftoneBackgroundColor
+            vertexShader: Config.theme.ditherBorder === "band"
+                ? "dither_uniform_edge.vert.qsb" : "dotted_outline.vert.qsb"
+            fragmentShader: Config.theme.ditherBorder === "band" ? "dither_uniform_edge.frag.qsb"
+                : Config.theme.ditherBorder === "double"
+                ? "double_outline.frag.qsb" : "dotted_outline.frag.qsb"
+        }
+    }
 }

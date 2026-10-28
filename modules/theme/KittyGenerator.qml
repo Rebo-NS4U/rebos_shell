@@ -12,18 +12,18 @@ QtObject {
         const fmt = c => c.toString();
 
         const cursor = fmt(Colors.overSurface);
-        const cursorText = fmt(Colors.overSurfaceVariant);
+        const cursorText = fmt(Colors.background);
 
         const foreground = fmt(Colors.overSurface);
         const background = fmt(Colors.background);
-        const selectionForeground = fmt(Colors.overSecondary);
-        const selectionBackground = fmt(Colors.secondaryFixedDim);
+        const selectionForeground = fmt(Colors.overPrimary);
+        const selectionBackground = fmt(Colors.primary);
         const urlColor = fmt(Colors.primary);
-        const backgroundOpacity = Config.theme.srBg.opacity;
+        const backgroundOpacity = Colors.opacity;
 
         // black
         const color0 = fmt(Colors.surfaceContainerLow);
-        const color8 = fmt(Colors.surfaceBright);
+        const color8 = fmt(Colors.outline);
 
         // red
         const color1 = fmt(Colors.red);
@@ -51,7 +51,7 @@ QtObject {
         const color14 = fmt(Colors.lightCyan);
 
         // white
-        const color7 = fmt(Colors.outline);
+        const color7 = fmt(Colors.overSurfaceVariant);
         const color15 = fmt(Colors.overSurface);
 
         let conf = "";
@@ -64,6 +64,22 @@ QtObject {
         conf += `selection_foreground ${selectionForeground}\n`;
         conf += `selection_background ${selectionBackground}\n`;
         conf += `url_color ${urlColor}\n\n`;
+
+        conf += `active_border_color ${fmt(Colors.primary)}\n`;
+        conf += `inactive_border_color ${fmt(Colors.outlineVariant)}\n`;
+        conf += `bell_border_color ${fmt(Colors.error)}\n`;
+        conf += `tab_bar_background ${background}\n`;
+        conf += `tab_bar_margin_color ${background}\n`;
+        conf += `active_tab_background ${fmt(Colors.primary)}\n`;
+        conf += `active_tab_foreground ${fmt(Colors.overPrimary)}\n`;
+        conf += `inactive_tab_background ${fmt(Colors.surface)}\n`;
+        conf += `inactive_tab_foreground ${fmt(Colors.overSurfaceVariant)}\n`;
+        conf += `mark1_background ${fmt(Colors.primary)}\n`;
+        conf += `mark1_foreground ${fmt(Colors.overPrimary)}\n`;
+        conf += `mark2_background ${fmt(Colors.secondary)}\n`;
+        conf += `mark2_foreground ${fmt(Colors.overSecondary)}\n`;
+        conf += `mark3_background ${fmt(Colors.tertiary)}\n`;
+        conf += `mark3_foreground ${fmt(Colors.overTertiary)}\n\n`;
 
         conf += `# black\n`;
         conf += `color0 ${color0}\n`;
@@ -97,30 +113,17 @@ QtObject {
         conf += `color7 ${color7}\n`;
         conf += `color15 ${color15}\n`;
 
-        const kittyConfPath = Quickshell.env("HOME") + "/.cache/nonchalant/kitty.conf";
+        const kittyConfPath = Quickshell.env("HOME") + "/.cache/rebos_shell/kitty.conf";
 
         // Ensure directory exists and write file
         const cmd = `
             mkdir -p "$(dirname "${kittyConfPath}")" && \\
             echo "${conf}" > "${kittyConfPath}" && \\
-            pkill -SIGUSR1 kitty
+            pkill -SIGUSR1 -x kitty || true
         `;
 
-        writerProcess.command = ["sh", "-c", cmd];
-        writerProcess.running = true;
+        writerProcess.submit(["sh", "-c", cmd]);
     }
 
-    property Process writerProcess: Process {
-        id: writerProcess
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: console.log("KittyGenerator: Colors generated.")
-        }
-        stderr: StdioCollector {
-            onStreamFinished: err => {
-                if (err)
-                    console.error("KittyGenerator Error:", err);
-            }
-        }
-    }
+    property ThemeWriter writerProcess: ThemeWriter {}
 }

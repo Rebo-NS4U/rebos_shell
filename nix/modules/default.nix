@@ -1,21 +1,21 @@
-# NixOS module for Nonchalant
+# NixOS module for rebos_shell
 { config, lib, pkgs, ... }:
 
 let
-  cfg = config.programs.nonchalant;
+  cfg = config.programs.rebos_shell;
 in {
-  options.programs.nonchalant = {
-    enable = lib.mkEnableOption "Nonchalant shell";
+  options.programs.rebos_shell = {
+    enable = lib.mkEnableOption "rebos_shell";
 
     package = lib.mkOption {
       type = lib.types.package;
-      description = "The Nonchalant package to use";
+      description = "The rebos_shell package to use";
     };
 
     fonts.enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Whether to install Nonchalant fonts (including Phosphor Icons)";
+      description = "Whether to install rebos_shell fonts (including Phosphor Icons)";
     };
   };
 

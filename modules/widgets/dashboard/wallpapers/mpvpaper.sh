@@ -37,7 +37,7 @@ else
     done
 fi
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
-SOCKET="${RUNTIME_DIR}/nonchalant_mpv_socket_${MONITOR}_$UID"
+SOCKET="${RUNTIME_DIR}/rebos_shell_mpv_socket_${MONITOR}_$UID"
 
 case "$MODE" in
     fit)

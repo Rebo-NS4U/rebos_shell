@@ -1,5 +1,5 @@
 ## OVERVIEW
-Nonchalant Shell is a Niri-first Wayland shell and hard fork of Ambxst, built with Quickshell. The lean runtime provides a wallpaper, one unified bar, a floating run menu, and a lockscreen, driven by a reactive JSON configuration system. Multi-monitor support uses `Variants` on `Quickshell.screens`.
+rebos_shell is a Niri-first Wayland shell and hard fork of Ambxst, built with Quickshell. The lean runtime provides a wallpaper, one unified bar, a floating run menu, and a lockscreen, driven by a reactive JSON configuration system. Multi-monitor support uses `Variants` on `Quickshell.screens`.
 
 ## STRUCTURE
 ```
@@ -35,7 +35,7 @@ Nonchalant Shell is a Niri-first Wayland shell and hard fork of Ambxst, built wi
 | **Config Logic** | `config/Config.qml` | Per-domain `FileView` + `JsonAdapter` persistence |
 | **Transient State** | `modules/globals/GlobalStates.qml` | Window visibility, active modes, runtime flags |
 | **Services** | `modules/services/*.qml` | 30+ singletons. System integration layer |
-| **Theme/Colors** | `modules/theme/Colors.qml` | Watches `~/.cache/nonchalant/colors.json` reactively |
+| **Theme/Colors** | `modules/theme/Colors.qml` | Watches `~/.cache/rebos_shell/colors.json` reactively |
 | **Styling** | `modules/theme/Styling.qml` | `radius()`, `fontSize()`, `getStyledRectConfig()` |
 | **UI Primitives** | `modules/components/` | `StyledRect`, `BarPopup`, `SearchInput`, shaders |
 | **Dashboard** | `modules/widgets/dashboard/` | Tabbed hub with LRU lazy-loading |
@@ -110,7 +110,7 @@ qs -p .
 # Or via CLI wrapper:
 ./cli.sh
 # IPC command testing
-qs ipc call nonchalant run <cmd>
+qs ipc call rebos_shell run <cmd>
 ```
 
 ## NOTES

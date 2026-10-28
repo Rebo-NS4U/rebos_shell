@@ -69,7 +69,7 @@ Singleton {
     }
 
     // Called only by LockScreen after PAM succeeds. Keeping this separate from
-    // the IPC commands prevents `nonchalant lock` from bypassing authentication.
+    // the IPC commands prevents `rebos_shell lock` from bypassing authentication.
     function finishUnlock() {
         if (!GlobalStates.lockscreenVisible || !GlobalStates.lockscreenUnlocking)
             return;
@@ -81,7 +81,7 @@ Singleton {
 
     Process {
         id: cleanupLockshotsProcess
-        command: ["sh", "-c", 'rm -f "${XDG_RUNTIME_DIR:-/tmp}"/nonchalant-lockshot-*.png']
+        command: ["sh", "-c", 'rm -f "${XDG_RUNTIME_DIR:-/tmp}"/rebos_shell-lockshot-*.png']
     }
 
 

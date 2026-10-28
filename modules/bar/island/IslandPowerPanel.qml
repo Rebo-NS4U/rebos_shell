@@ -94,9 +94,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: backMouse.pressed ? 80 : 250
-                        easing.type: backMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: backMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -148,9 +147,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: sleepMouse.pressed ? 80 : 250
-                        easing.type: sleepMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: sleepMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -184,9 +182,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: lockMouse.pressed ? 80 : 250
-                        easing.type: lockMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: lockMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -220,9 +217,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: logoutMouse.pressed ? 80 : 250
-                        easing.type: logoutMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: logoutMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -256,9 +252,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: rebootMouse.pressed ? 80 : 250
-                        easing.type: rebootMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: rebootMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -292,9 +287,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: shutdownMouse.pressed ? 80 : 250
-                        easing.type: shutdownMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: shutdownMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 

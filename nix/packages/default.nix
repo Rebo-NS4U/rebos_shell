@@ -1,4 +1,4 @@
-# Main Nonchalant package
+# Main rebos_shell package
 { pkgs, lib, self, system, version }:
 
 let
@@ -21,23 +21,23 @@ let
     ++ appsPkgs
     ++ fontsPkgs;
 
-  envNonchalant = pkgs.buildEnv {
-    name = "Nonchalant-env";
+  envRebosShell = pkgs.buildEnv {
+    name = "rebos_shell-env";
     paths = baseEnv;
   };
 
   # Create fontconfig configuration to find bundled fonts
-  fontconfigConf = pkgs.writeTextDir "etc/fonts/conf.d/99-nonchalant-fonts.conf" ''
+  fontconfigConf = pkgs.writeTextDir "etc/fonts/conf.d/99-rebos_shell-fonts.conf" ''
     <?xml version="1.0"?>
     <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
     <fontconfig>
-      <dir>${envNonchalant}/share/fonts</dir>
+      <dir>${envRebosShell}/share/fonts</dir>
     </fontconfig>
   '';
 
   # Copy shell sources to the Nix store
   shellSrc = pkgs.stdenv.mkDerivation {
-    pname = "nonchalant-shell";
+    pname = "rebos_shell";
     inherit version;
     src = lib.cleanSource self;
     dontBuild = true;
@@ -47,12 +47,12 @@ let
     '';
   };
 
-  launcher = pkgs.writeShellScriptBin "nonchalant" ''
-    export NONCHALANT_QS="${quickshellPkg}/bin/qs"
-    export PATH="${envNonchalant}/bin:$PATH"
+  launcher = pkgs.writeShellScriptBin "rebos_shell" ''
+    export REBOS_SHELL_QS="${quickshellPkg}/bin/qs"
+    export PATH="${envRebosShell}/bin:$PATH"
 
-    # Set QML2_IMPORT_PATH to include modules from envNonchalant (like syntax-highlighting)
-    export QML2_IMPORT_PATH="${envNonchalant}/lib/qt-6/qml:$QML2_IMPORT_PATH"
+    # Set QML2_IMPORT_PATH to include modules from envRebosShell (like syntax-highlighting)
+    export QML2_IMPORT_PATH="${envRebosShell}/lib/qt-6/qml:$QML2_IMPORT_PATH"
     export QML_IMPORT_PATH="$QML2_IMPORT_PATH"
 
     # Make bundled fonts available to fontconfig
@@ -63,7 +63,7 @@ let
   '';
 
 in pkgs.buildEnv {
-  name = "Nonchalant-${version}";
-  paths = [ envNonchalant launcher ];
-  meta.mainProgram = "nonchalant";
+  name = "rebos_shell-${version}";
+  paths = [ envRebosShell launcher ];
+  meta.mainProgram = "rebos_shell";
 }

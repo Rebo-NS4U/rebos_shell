@@ -2,8 +2,8 @@
 set -e
 
 # === Configuration ===
-REPO_URL="${NONCHALANT_REPO_URL:-https://github.com/jR4dh3y/nonchalant-shell.git}"
-INSTALL_PATH="$HOME/.local/src/nonchalant"
+REPO_URL="${REBOS_SHELL_REPO_URL:-}"
+INSTALL_PATH="$HOME/.local/src/rebos_shell"
 BIN_DIR="/usr/local/bin"
 QUICKSHELL_REPO="https://git.outfoxxed.me/outfoxxed/quickshell"
 
@@ -92,14 +92,14 @@ filter_packages() {
 install_dependencies() {
   case "$DISTRO" in
   nixos)
-    local FLAKE_URI="${1:-github:jR4dh3y/nonchalant-shell}"
+    local FLAKE_URI="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)}"
     nix profile list | grep -q "ddcutil" && nix profile remove ddcutil 2>/dev/null || true
 
-    if nix profile list | grep -q "Nonchalant"; then
-      log_info "Updating Nonchalant..."
-      nix profile upgrade Nonchalant --refresh --impure
+    if nix profile list | grep -q "rebos_shell"; then
+      log_info "Updating rebos_shell..."
+      nix profile upgrade rebos_shell --refresh --impure
     else
-      log_info "Installing Nonchalant..."
+      log_info "Installing rebos_shell..."
       nix profile add "$FLAKE_URI" --impure
     fi
     ;;
@@ -204,85 +204,17 @@ install_phosphor_fonts() {
   log_success "Phosphor Icons installed"
 }
 
-# === Migration ===
-migrate_old_paths() {
-  log_info "Checking for old Nonchalant paths..."
-
-  # Source migration (PascalCase -> lowercase)
-  local OLD_SRC="$HOME/Nonchalant"
-  if [[ -d "$OLD_SRC" && ! -d "$INSTALL_PATH" ]]; then
-    log_info "Migrating source: $OLD_SRC -> $INSTALL_PATH"
-    mkdir -p "$(dirname "$INSTALL_PATH")"
-    cp -r "$OLD_SRC" "$INSTALL_PATH"
-  fi
-
-  # Config migration
-  local OLD_CONFIG="$HOME/.config/Nonchalant"
-  local NEW_CONFIG="$HOME/.config/nonchalant"
-  if [[ -d "$OLD_CONFIG" && ! -d "$NEW_CONFIG" ]]; then
-    log_info "Migrating config: $OLD_CONFIG -> $NEW_CONFIG"
-    mv "$OLD_CONFIG" "$NEW_CONFIG"
-  fi
-
-  # Share migration
-  local OLD_SHARE="$HOME/.local/share/Nonchalant"
-  local NEW_SHARE="$HOME/.local/share/nonchalant"
-  if [[ -d "$OLD_SHARE" && ! -d "$NEW_SHARE" ]]; then
-    log_info "Migrating share: $OLD_SHARE -> $NEW_SHARE"
-    mv "$OLD_SHARE" "$NEW_SHARE"
-  fi
-
-  # State migration
-  local OLD_STATE="$HOME/.local/state/Nonchalant"
-  local NEW_STATE="$HOME/.local/state/nonchalant"
-  if [[ -d "$OLD_STATE" && ! -d "$NEW_STATE" ]]; then
-    log_info "Migrating state: $OLD_STATE -> $NEW_STATE"
-    mv "$OLD_STATE" "$NEW_STATE"
-  fi
-
-  # Cache migration
-  local OLD_CACHE_DIR="$HOME/.cache/Nonchalant"
-  local NEW_CACHE_DIR="$HOME/.cache/nonchalant"
-  if [[ -d "$OLD_CACHE_DIR" && ! -d "$NEW_CACHE_DIR" ]]; then
-    log_info "Migrating cache: $OLD_CACHE_DIR -> $NEW_CACHE_DIR"
-    mv "$OLD_CACHE_DIR" "$NEW_CACHE_DIR"
-  fi
-
-  # Legacy share -> cache migration (Wallpapers & Thumbnails)
-  local NEW_CACHE="$HOME/.cache/nonchalant"
-  if [[ -d "$NEW_SHARE" ]]; then
-    mkdir -p "$NEW_CACHE"
-
-    if [[ -f "$NEW_SHARE/wallpapers.json" && ! -f "$NEW_CACHE/wallpapers.json" ]]; then
-      log_info "Migrating wallpapers.json to cache..."
-      cp "$NEW_SHARE/wallpapers.json" "$NEW_CACHE/wallpapers.json"
-    fi
-
-    if [[ -d "$NEW_SHARE/thumbnails" && ! -d "$NEW_CACHE/thumbnails" ]]; then
-      log_info "Migrating thumbnails to cache..."
-      cp -r "$NEW_SHARE/thumbnails" "$NEW_CACHE/thumbnails"
-    fi
-  fi
-
-  # Config structure warning
-  if [[ -f "$NEW_CONFIG/config.json" && ! -d "$NEW_CONFIG/config" ]]; then
-    log_warn "Old single-file config detected."
-    log_info "Nonchalant now uses a multi-file configuration in $NEW_CONFIG/config/"
-    log_info "Your old config.json remains at $NEW_CONFIG/config.json for reference."
-  fi
-}
-
 # === Repository Setup ===
 setup_repo() {
   [[ "$DISTRO" == "nixos" ]] && return
 
   if [[ ! -d "$INSTALL_PATH" ]]; then
     if [[ -z "$REPO_URL" ]]; then
-      log_error "No public Nonchalant repository is configured yet."
+      log_error "No public rebos_shell repository is configured yet."
       log_info "Run this development tree directly with: qs -p $(pwd)"
       exit 1
     fi
-    log_info "Cloning Nonchalant to $INSTALL_PATH..."
+    log_info "Cloning rebos_shell to $INSTALL_PATH..."
     mkdir -p "$(dirname "$INSTALL_PATH")"
     git clone "$REPO_URL" "$INSTALL_PATH"
     return
@@ -417,10 +349,10 @@ configure_services() {
 setup_launcher() {
   [[ "$DISTRO" == "nixos" ]] && return
 
-  [[ -f "$HOME/.local/bin/nonchalant" ]] && rm -f "$HOME/.local/bin/nonchalant"
+  [[ -f "$HOME/.local/bin/rebos_shell" ]] && rm -f "$HOME/.local/bin/rebos_shell"
 
   sudo mkdir -p "$BIN_DIR"
-  local LAUNCHER="$BIN_DIR/nonchalant"
+  local LAUNCHER="$BIN_DIR/rebos_shell"
 
   log_info "Creating launcher at $LAUNCHER..."
   sudo tee "$LAUNCHER" >/dev/null <<-EOF
@@ -435,7 +367,6 @@ setup_launcher() {
 }
 
 # === Main ===
-migrate_old_paths
 install_dependencies "$1"
 setup_repo
 install_quickshell
@@ -445,4 +376,4 @@ setup_launcher
 
 echo ""
 log_success "Installation complete!"
-[[ "$DISTRO" != "nixos" ]] && echo -e "Run ${GREEN}nonchalant${NC} to start."
+[[ "$DISTRO" != "nixos" ]] && echo -e "Run ${GREEN}rebos_shell${NC} to start."

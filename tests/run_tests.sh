@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # run_tests.sh
-# Nonchalant Shell Dynamic Island Test Suite Runner wrapper.
+# rebos_shell Dynamic Island Test Suite Runner wrapper.
 
 set -euo pipefail
 

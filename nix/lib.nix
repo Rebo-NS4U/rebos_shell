@@ -1,4 +1,4 @@
-# Utility functions for Nonchalant flake
+# Utility functions for rebos_shell flake
 { nixpkgs }:
 
 let

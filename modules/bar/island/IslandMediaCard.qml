@@ -44,6 +44,9 @@ StyledRect {
         source: root.hasArtwork ? root.trackArt : root.wallpaperUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
+        // Keep pending artwork loads out of the shared reload cache.
+        cache: false
+
         clip: true
         layer.enabled: true
         layer.effect: MultiEffect {
@@ -52,7 +55,7 @@ StyledRect {
             blur: 0.75
         }
         opacity: root.hasArtwork ? 1.0 : (root.wallpaperUrl !== "" ? 0.35 : 0.0)
-        Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic } }
     }
 
     // Gradient overlay for contrast
@@ -60,8 +63,8 @@ StyledRect {
         anchors.fill: parent
         color: "transparent"
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#44000000" }
-            GradientStop { position: 1.0; color: "#88000000" }
+            GradientStop { position: 0.0; color: Styling.withOpacity(Colors.scrim, 0.27) }
+            GradientStop { position: 1.0; color: Styling.withOpacity(Colors.scrim, 0.53) }
         }
     }
 
@@ -115,6 +118,9 @@ StyledRect {
                                     }
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
+                                    // Keep pending artwork loads out of the shared reload cache.
+                                    cache: false
+
                                     visible: source !== ""
                                 }
 
@@ -187,9 +193,8 @@ StyledRect {
 
                     Behavior on scale {
                         NumberAnimation {
-                            duration: prevMouse.pressed ? 80 : 250
-                            easing.type: prevMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                            easing.overshoot: 1.5
+                            duration: prevMouse.pressed ? Motion.press : Motion.feedback
+                            easing.type: Motion.feedbackCurve
                         }
                     }
 
@@ -223,9 +228,8 @@ StyledRect {
 
                     Behavior on scale {
                         NumberAnimation {
-                            duration: playMouse.pressed ? 80 : 250
-                            easing.type: playMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                            easing.overshoot: 1.5
+                            duration: playMouse.pressed ? Motion.press : Motion.feedback
+                            easing.type: Motion.feedbackCurve
                         }
                     }
 
@@ -258,9 +262,8 @@ StyledRect {
 
                     Behavior on scale {
                         NumberAnimation {
-                            duration: nextMouse.pressed ? 80 : 250
-                            easing.type: nextMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                            easing.overshoot: 1.5
+                            duration: nextMouse.pressed ? Motion.press : Motion.feedback
+                            easing.type: Motion.feedbackCurve
                         }
                     }
 

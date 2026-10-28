@@ -1,6 +1,7 @@
 .pragma library
 
 var data = {
+    "desktopBlur": "medium",
     "blurTransition": true,
     "windowPreview": true,
     "wavyLine": true,

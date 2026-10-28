@@ -14,7 +14,16 @@ Singleton {
     property real maxTemp: 0
     property real minTemp: 0
     property int weatherCode: 0
-    property real windSpeed: 0
+    property real windSpeed: 0 // km/h from Open-Meteo
+    property real feelsLike: NaN
+    property real humidity: NaN
+    property real windGusts: NaN
+    property real windDirection: NaN
+    property real uvIndex: NaN
+    property real rainChance: NaN
+    property string observedAt: ""
+    property list<var> hourlyForecast: []
+    property string lastUpdated: ""
     property bool dataAvailable: false
     property bool isLoading: false
     property bool hasFailed: false
@@ -411,13 +420,38 @@ Singleton {
                             return;
                         }
 
-                        if (data.current_weather && data.daily) {
-                            var weather = data.current_weather;
+                        if (data.current && data.daily) {
+                            var weather = data.current;
                             var daily = data.daily;
 
-                            root.weatherCode = parseInt(weather.weathercode);
-                            root.currentTemp = convertTemp(parseFloat(weather.temperature));
-                            root.windSpeed = parseFloat(weather.windspeed);
+                            root.weatherCode = parseInt(weather.weather_code);
+                            root.currentTemp = convertTemp(parseFloat(weather.temperature_2m));
+                            root.windSpeed = parseFloat(weather.wind_speed_10m);
+                            const current = data.current ?? {};
+                            root.feelsLike = current.apparent_temperature == null ? NaN : convertTemp(Number(current.apparent_temperature));
+                            root.humidity = current.relative_humidity_2m ?? NaN;
+                            root.windGusts = current.wind_gusts_10m ?? NaN;
+                            root.windDirection = current.wind_direction_10m ?? NaN;
+                            root.uvIndex = daily.uv_index_max?.[0] ?? NaN;
+                            root.rainChance = daily.precipitation_probability_max?.[0] ?? NaN;
+                            root.observedAt = weather.time ?? current.time ?? "";
+                            root.lastUpdated = Qt.formatTime(new Date(), Config.bar.use12hFormat ? "h:mm ap" : "HH:mm");
+                            const hourly = data.hourly ?? {};
+                            const upcoming = [];
+                            // Compare provider-local ISO strings; do not reinterpret
+                            // a remote city's time using the desktop's timezone.
+                            for (let h = 0; h < (hourly.time?.length ?? 0) && upcoming.length < 6; h++) {
+                                if (hourly.time[h] < root.observedAt)
+                                    continue;
+                                upcoming.push({
+                                    time: hourly.time[h].split("T")[1],
+                                    temperature: hourly.temperature_2m?.[h] == null ? NaN : convertTemp(Number(hourly.temperature_2m[h])),
+                                    rainChance: hourly.precipitation_probability?.[h] ?? NaN,
+                                    emoji: getWeatherCodeEmoji(hourly.weather_code?.[h] ?? 0)
+                                });
+                            }
+                            root.hourlyForecast = upcoming;
+
 
                             if (daily.temperature_2m_max && daily.temperature_2m_max.length > 0) {
                                 root.maxTemp = convertTemp(parseFloat(daily.temperature_2m_max[0]));
@@ -453,7 +487,8 @@ Singleton {
                                     weatherCode: daily.weathercode ? daily.weathercode[i] : 0,
                                     emoji: getWeatherCodeEmoji(daily.weathercode ? daily.weathercode[i] : 0),
                                     maxTemp: convertTemp(daily.temperature_2m_max ? daily.temperature_2m_max[i] : 0),
-                                    minTemp: convertTemp(daily.temperature_2m_min ? daily.temperature_2m_min[i] : 0)
+                                    minTemp: convertTemp(daily.temperature_2m_min ? daily.temperature_2m_min[i] : 0),
+                                    rainChance: daily.precipitation_probability_max?.[i] ?? NaN
                                 });
                             }
                             root.forecast = forecastData;

@@ -2,6 +2,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import qs.config
+import qs.modules.theme
+import "ShellStyles.js" as ShellStyles
 
 Singleton {
     id: root
@@ -13,8 +15,18 @@ Singleton {
     readonly property int textRenderType: Text.NativeRendering
     readonly property int textHinting: Font.PreferFullHinting
 
+    function withOpacity(value: color, opacity: real): color {
+        return Qt.rgba(value.r, value.g, value.b, opacity);
+    }
+
+    readonly property string shellStyle: Config.theme?.shellStyle ?? "glass"
+    readonly property bool unifiedStyle: shellStyle !== "custom"
+    readonly property real ditherCellSize: ShellStyles.ditherCellSize(Config.theme.ditherStrength)
+    readonly property real ditherEdgeWidth: Math.max(1, Math.round(ditherCellSize * 1.5))
+
     function radius(offset: real): real {
-        return Config.roundness > 0 ? Math.max(Config.roundness + offset, 0) : 0;
+        const adjustment = unifiedStyle ? Math.max(-6, Math.min(6, offset * 0.35)) : offset;
+        return Config.roundness > 0 ? Math.max(Config.roundness + adjustment, 0) : 0;
     }
 
     function fontSize(offset: real): real {
@@ -26,7 +38,22 @@ Singleton {
     }
 
 
-    function getStyledRectConfig(variant) {
+    function getStyledRectConfig(variant: string): var {
+        return styleConfig(shellStyle, variant);
+    }
+
+    function styleConfig(style: string, variant: string): var {
+        if (style === "custom") return customRectConfig(variant);
+        return ShellStyles.surface(style, variant, {
+            background: Colors.background.toString(), foreground: Colors.overBackground.toString(),
+            primary: Colors.primary.toString(), onPrimary: Colors.overPrimary.toString(),
+            secondary: Colors.secondary.toString(), onSecondary: Colors.overSecondary.toString(),
+            tertiary: Colors.tertiary.toString(), onTertiary: Colors.overTertiary.toString(),
+            error: Colors.error.toString(), onError: Colors.overError.toString()
+        }, Config.theme.ditherStrength);
+    }
+
+    function customRectConfig(variant: string): var {
         switch (variant) {
         case "transparent":
             // Internal variant: uses bg config but with opacity, border and radius forced to 0
@@ -54,10 +81,13 @@ Singleton {
             return Config.theme.srPopup;
         case "internalbg":
             return Config.theme.srInternalBg;
+        case "surface":
+        case "surfaceContainer":
         case "pane":
             return Config.theme.srPane;
         case "common":
             return Config.theme.srCommon;
+        case "surfaceVariant":
         case "focus":
             return Config.theme.srFocus;
         case "primary":
@@ -91,7 +121,7 @@ Singleton {
         }
     }
 
-    function srItem(variant) {
+    function srItem(variant: string): color {
         return Config.resolveColor(getStyledRectConfig(variant).itemColor);
     }
 }

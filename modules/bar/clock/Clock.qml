@@ -6,6 +6,7 @@ import qs.config
 import qs.modules.theme
 import qs.modules.components
 import qs.modules.services
+import qs.modules.bar.island
 import qs.modules.globals
 import qs.modules.widgets.dashboard
 import "../../widgets/dashboard/widgets"
@@ -122,9 +123,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: weatherMouse.pressed ? 80 : 250
-                        easing.type: weatherMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: weatherMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -147,7 +147,12 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     // claimBarPopup quick-closes dashboard if it was open.
-                    onClicked: {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => {
+                        if (mouse.button === Qt.RightButton) {
+                            WeatherService.updateWeather();
+                            return;
+                        }
                         if (dashboardPopup.isOpen)
                             dashboardPopup.closeQuick();
                         clockPopup.toggle();
@@ -167,9 +172,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: dateMouse.pressed ? 80 : 250
-                        easing.type: dateMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: dateMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -207,9 +211,8 @@ Item {
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: timeMouse.pressed ? 80 : 250
-                        easing.type: timeMouse.pressed ? Easing.OutQuad : Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: timeMouse.pressed ? Motion.press : Motion.feedback
+                        easing.type: Motion.feedbackCurve
                     }
                 }
 
@@ -324,6 +327,10 @@ Item {
                         height: 140
                         showDebugControls: false
                         animationsEnabled: clockPopup.isOpen
+                    }
+
+                    WeatherDetails {
+                        width: weatherWidget.width
                     }
 
                     // 7-day forecast panel (below weather widget)

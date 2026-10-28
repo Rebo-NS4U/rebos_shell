@@ -179,21 +179,7 @@ Singleton {
     signal assistantFocusRequested(bool wasAlreadyOpen)
 
     function toggleAssistant() {
-        if (!assistantAvailable) {
-            assistantVisible = false;
-            return;
-        }
-        if (assistantVisible) {
-            assistantFocusRequested(true);
-        } else {
-            assistantVisible = true;
-            if (NiriService.focusedMonitor && NiriService.focusedMonitor.name) {
-                assistantScreenName = NiriService.focusedMonitor.name;
-            } else if (Quickshell.screens.length > 0) {
-                assistantScreenName = Quickshell.screens[0].name;
-            }
-            assistantFocusRequested(false);
-        }
+        Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/rebos-assistant"]);
     }
 
     function hideAssistant() {
@@ -206,4 +192,5 @@ Singleton {
     }
 
     property int settingsCurrentTab: 0
+    property bool settingsNewWindowRuleRequested: false
 }

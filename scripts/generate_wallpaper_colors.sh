@@ -7,54 +7,74 @@ mode=${3:-dark}
 matugen_config=${4:?matugen config is required}
 output_path=${5:?output path is required}
 
-# matugen 4.x refuses to pick a source color without a TTY unless --prefer
-# or --source-color-index is set. Quickshell Process has no TTY, so we must
-# pass a non-interactive preference or generation silently fails and the shell
-# stays on a stale near-black palette.
-prefer=${MATUGEN_PREFER:-saturation}
-
+# Use a saturated source automatically: no interactive prompt in QuickShell.
+# Render to an isolated file so failed or interrupted jobs cannot publish a
+# partial palette or report success just because an older cache exists.
 if command -v matugen >/dev/null 2>&1; then
-  args=(
-    matugen image "$image_path"
-    --prefer "$prefer"
-    --source-color-index 0
-    -c "$matugen_config"
-    -t "$scheme"
-    -m "$mode"
-  )
-  # Templates write to the path in config.toml (~/.cache/nonchalant/colors.json).
-  # Keep output_path for wallust fallback and for callers that pass it.
-  if "${args[@]}"; then
-    if [[ -f "$output_path" ]] || [[ -f "${HOME}/.cache/nonchalant/colors.json" ]]; then
-      # If the template wrote the standard cache path but the caller expected
-      # a different output_path, mirror it.
-      cache_path="${HOME}/.cache/nonchalant/colors.json"
-      if [[ -f "$cache_path" && "$output_path" != "$cache_path" ]]; then
-        mkdir -p "$(dirname "$output_path")"
-        cp -f "$cache_path" "$output_path"
-      fi
-      exit 0
-    fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo '{"error":"python3 is required for atomic Matugen generation"}' >&2
+    exit 127
   fi
-  echo "matugen failed; trying wallust fallback..." >&2
+  mkdir -p "$(dirname "$output_path")"
+  work_dir=$(mktemp -d "$(dirname "$output_path")/matugen.XXXXXX")
+  trap 'rm -rf "$work_dir"' EXIT
+  python3 - "$matugen_config" "$work_dir" <<'PYCONFIG'
+import json
+from pathlib import Path
+import re
+import sys
+source = Path(sys.argv[1]).resolve()
+folder = Path(sys.argv[2]).resolve()
+config = source.read_text()
+config = re.sub(r'^input_path\s*=\s*"colors.json"$',
+                lambda _: 'input_path = ' + json.dumps(str(source.parent / 'colors.json')),
+                config, flags=re.M)
+config = re.sub(r'^output_path\s*=.*$',
+                lambda _: 'output_path = ' + json.dumps(str(folder / 'colors.json')),
+                config, flags=re.M)
+(folder / 'config.toml').write_text(config)
+PYCONFIG
+  if matugen image "$image_path" --prefer "${MATUGEN_PREFER:-saturation}" \
+      -c "$work_dir/config.toml" -t "$scheme" -m "$mode" && \
+      python3 - "$work_dir/colors.json" <<'PYVALIDATE'
+import json
+import re
+import sys
+from pathlib import Path
+palette = json.loads(Path(sys.argv[1]).read_text())
+assert all(key in palette for key in ('background', 'primary', 'overBackground', 'surface'))
+assert all(isinstance(value, str) and re.fullmatch(r'#[0-9a-fA-F]{6}', value)
+           for value in palette.values())
+PYVALIDATE
+  then
+    mv -f "$work_dir/colors.json" "$output_path"
+    rm -rf "$work_dir"
+    trap - EXIT
+    echo "Generated rebos_shell colors with Matugen."
+    exit 0
+  fi
+  rm -rf "$work_dir"
+  trap - EXIT
+  echo "Matugen failed; trying Wallust fallback..." >&2
 fi
 
 if ! command -v wallust >/dev/null 2>&1; then
-  echo "Neither matugen nor wallust is installed; wallpaper colors were not generated." >&2
+  echo '{"error":"Neither matugen nor wallust is installed"}' >&2
+  exit 127
+fi
+if ! command -v jq >/dev/null 2>&1; then
+  echo '{"error":"jq is required for the Wallust palette export"}' >&2
   exit 127
 fi
 
-palette_name=ansidark16
-[[ $mode == light ]] && palette_name=light16
-
 mapfile -t palette < <(
-  wallust run --no-config --no-cache --skip-sequences --skip-templates \
-    --print-scheme --palette "$palette_name" --colorspace lchansi "$image_path" 2>/dev/null \
+  wallust run --no-config --skip-sequences --skip-templates \
+    --print-scheme --palette ansi --style "$mode" --check-contrast "$image_path" \
     | awk '/^#[[:xdigit:]]{6}$/{print toupper($0)}'
 )
 
 if (( ${#palette[@]} < 16 )); then
-  echo "Wallust returned an incomplete wallpaper palette." >&2
+  echo '{"error":"Wallust returned an incomplete wallpaper palette"}' >&2
   exit 1
 fi
 
@@ -140,10 +160,4 @@ jq -n \
 
 mv "$temporary_path" "$output_path"
 trap - EXIT
-# Mirror into the path Colors.qml watches when different
-cache_path="${HOME}/.cache/nonchalant/colors.json"
-if [[ "$output_path" != "$cache_path" ]]; then
-  mkdir -p "$(dirname "$cache_path")"
-  cp -f "$output_path" "$cache_path"
-fi
-echo "Generated Nonchalant colors with wallust (matugen is unavailable)."
+echo "Generated rebos_shell colors with Wallust fallback."

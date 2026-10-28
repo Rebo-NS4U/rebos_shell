@@ -181,7 +181,7 @@ Item {
 
                         Behavior on width {
                             enabled: Config.animDuration > 0
-                            NumberAnimation { duration: 250 }
+                            NumberAnimation { duration: Motion.feedback }
                         }
                     }
                 }
@@ -217,6 +217,8 @@ Item {
                     // 1. Power Saver
                     StyledRect {
                         id: saverBtn
+                        enabled: PowerProfile.availableProfiles.indexOf("power-saver") !== -1
+                        opacity: enabled ? 1 : 0.4
                         Layout.fillWidth: true
                         Layout.preferredHeight: 38
                         radius: Styling.radius(1)
@@ -250,7 +252,7 @@ Item {
                             id: saverMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: PowerProfile.setProfile("power-saver")
                         }
                     }
@@ -258,6 +260,8 @@ Item {
                     // 2. Balanced
                     StyledRect {
                         id: balBtn
+                        enabled: PowerProfile.availableProfiles.indexOf("balanced") !== -1
+                        opacity: enabled ? 1 : 0.4
                         Layout.fillWidth: true
                         Layout.preferredHeight: 38
                         radius: Styling.radius(1)
@@ -291,7 +295,7 @@ Item {
                             id: balMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: PowerProfile.setProfile("balanced")
                         }
                     }
@@ -299,6 +303,8 @@ Item {
                     // 3. Performance
                     StyledRect {
                         id: perfBtn
+                        enabled: PowerProfile.availableProfiles.indexOf("performance") !== -1
+                        opacity: enabled ? 1 : 0.4
                         Layout.fillWidth: true
                         Layout.preferredHeight: 38
                         radius: Styling.radius(1)
@@ -332,7 +338,7 @@ Item {
                             id: perfMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: PowerProfile.setProfile("performance")
                         }
                     }

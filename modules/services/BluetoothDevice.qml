@@ -17,22 +17,17 @@ QtObject {
 
     signal infoUpdated()
 
-    // Connect (auto-trust new devices)
     function connect() {
+        if (connecting) return;
         connecting = true;
-        let p;
-        if (!trusted) {
-            // Trust first, then connect
-            p = BluetoothService.runAsync(["bluetoothctl", "trust", address]).then(() => {
-                return BluetoothService.runAsync(["bluetoothctl", "connect", address]);
-            });
-        } else {
-            p = BluetoothService.connectDevice(address);
-        }
-
-        return p.catch(e => {
-            console.error(`Failed to connect to ${address}: ${e}`);
-        }).finally(() => {
+        const pairing = paired ? Promise.resolve() : BluetoothService.pairDevice(address);
+        return pairing.then(() => {
+            return trusted ? Promise.resolve() : BluetoothService.trustDevice(address);
+        }).then(() => BluetoothService.connectDevice(address)).then(() => {
+            connecting = false;
+            updateInfo();
+        }, error => {
+            // The shared service exposes the failure in both Bluetooth panels.
             connecting = false;
             updateInfo();
         });
@@ -41,6 +36,7 @@ QtObject {
     function updateInfo() {
         return BluetoothService.runAsync(["bluetoothctl", "info", address]).then(text => {
             Qt.callLater(() => {
+                root.battery = -1;
                 const lines = text.split("\n");
                 for (const line of lines) {
                     const trimmed = line.trim();
@@ -56,7 +52,7 @@ QtObject {
                     } else if (trimmed.startsWith("Battery Percentage:")) {
                         const match = trimmed.match(/\((\d+)\)/);
                         if (match) {
-                            root.battery = parseInt(match[1]) || -1;
+                            root.battery = parseInt(match[1], 10);
                         }
                     }
                 }
@@ -68,18 +64,18 @@ QtObject {
     }
 
     function disconnect() {
-        BluetoothService.disconnectDevice(address);
+        BluetoothService.disconnectDevice(address).catch(error => {});
     }
 
     function pair() {
-        BluetoothService.pairDevice(address);
+        BluetoothService.pairDevice(address).catch(error => {});
     }
 
     function trust() {
-        BluetoothService.trustDevice(address);
+        BluetoothService.trustDevice(address).catch(error => {});
     }
 
     function forget() {
-        BluetoothService.removeDevice(address);
+        BluetoothService.removeDevice(address).catch(error => {});
     }
 }

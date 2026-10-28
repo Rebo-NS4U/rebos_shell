@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# The guard uses private Qt ABI. Disable it automatically after library updates.
+guard_dir="${XDG_DATA_HOME:-$HOME/.local/share}/rebos_shell/qt-screen-guard"
+guard_library="$guard_dir/build-make/librebos-qt-screen-guard.so"
+if [[ -f "$guard_library" && -f "$guard_dir/qt-libraries.sha256" ]] \
+    && sha256sum --check --status "$guard_dir/qt-libraries.sha256"; then
+    export LD_PRELOAD="$guard_library${LD_PRELOAD:+:$LD_PRELOAD}"
+else
+    printf 'Quickshell screen guard unavailable or Qt changed; running without the local guard.\n' >&2
+fi
+exec /usr/bin/qs "$@"

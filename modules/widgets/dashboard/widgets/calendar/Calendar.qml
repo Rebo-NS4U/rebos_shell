@@ -89,9 +89,8 @@ Item {
 
                         Behavior on scale {
                             NumberAnimation {
-                                duration: leftMouseArea.pressed ? 80 : 250
-                                easing.type: leftMouseArea.pressed ? Easing.OutQuad : Easing.OutBack
-                                easing.overshoot: 1.5
+                                duration: leftMouseArea.pressed ? Motion.press : Motion.feedback
+                                easing.type: Motion.feedbackCurve
                             }
                         }
 
@@ -126,9 +125,8 @@ Item {
 
                         Behavior on scale {
                             NumberAnimation {
-                                duration: rightMouseArea.pressed ? 80 : 250
-                                easing.type: rightMouseArea.pressed ? Easing.OutQuad : Easing.OutBack
-                                easing.overshoot: 1.5
+                                duration: rightMouseArea.pressed ? Motion.press : Motion.feedback
+                                easing.type: Motion.feedbackCurve
                             }
                         }
 

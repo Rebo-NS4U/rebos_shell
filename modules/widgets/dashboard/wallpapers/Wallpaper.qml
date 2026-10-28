@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import qs.modules.globals
 import qs.modules.theme
+import qs.modules.services
 import qs.config
 import "MpvShaderGenerator.js" as ShaderGenerator
 
@@ -18,7 +19,7 @@ PanelWindow {
     }
 
     WlrLayershell.layer: WlrLayer.Background
-    WlrLayershell.namespace: "nonchalant:wallpaper"
+    WlrLayershell.namespace: "rebos_shell:wallpaper"
     exclusionMode: ExclusionMode.Ignore
 
     color: "transparent"
@@ -34,8 +35,45 @@ PanelWindow {
     property bool usingFallback: false
     property bool _wallpaperDirInitialized: false
     property string currentMatugenScheme: wallpaperConfig.adapter.matugenScheme
+    readonly property bool paletteBusy: matugenProcessWithConfig.running || applyPresetProcess.running
+    property string paletteError: ""
+
+    function setWallpaperDirectory(path: string): void {
+        let directory = path.trim() || fallbackDir;
+        if (directory === "~")
+            directory = Quickshell.env("HOME");
+        else if (directory.startsWith("~/"))
+            directory = Quickshell.env("HOME") + directory.substring(1);
+        wallpaperConfig.adapter.wallPath = directory;
+    }
     property var perScreenWallpapers: wallpaperConfig.adapter.perScreenWallpapers || {}
     property string effectiveWallpaper: perScreenWallpapers[currentScreenName] || currentWallpaper
+    readonly property string renderedWallpaper: DitheredWallpapers.source(effectiveWallpaper)
+
+    function requestDitheredWallpapers(): void {
+        DitheredWallpapers.request(effectiveWallpaper);
+        if (GlobalStates.wallpaperManager === wallpaper)
+            DitheredWallpapers.request(currentWallpaper);
+    }
+
+    function refreshDitheredTheme(): void {
+        requestDitheredWallpapers();
+        if (GlobalStates.wallpaperManager === wallpaper)
+            runMatugenForCurrentWallpaper();
+    }
+
+    Connections {
+        target: DitheredWallpapers
+        function onActiveChanged() { wallpaper.refreshDitheredTheme(); }
+        function onPaletteChanged() { wallpaper.refreshDitheredTheme(); }
+        function onTintChanged() { wallpaper.refreshDitheredTheme(); }
+        function onStrengthChanged() { wallpaper.refreshDitheredTheme(); }
+        function onFinished(path: string) {
+            if (path === wallpaper.currentWallpaper && GlobalStates.wallpaperManager === wallpaper
+                    && !DitheredWallpapers.waiting(path))
+                wallpaper.runMatugenForCurrentWallpaper();
+        }
+    }
     property string currentScreenName: wallpaper.screen ? wallpaper.screen.name : ""
     property alias tintEnabled: wallpaperAdapter.tintEnabled
     property alias wallpaperMode: wallpaperAdapter.wallpaperMode
@@ -85,7 +123,7 @@ PanelWindow {
                 GlobalStates.notifyLockshotPrepared(wallpaper.currentScreenName, "");
                 return;
             }
-            const path = runtimeDir + "/nonchalant-lockshot-" + wallpaper.currentScreenName + ".png";
+            const path = runtimeDir + "/rebos_shell-lockshot-" + wallpaper.currentScreenName + ".png";
             if (result && result.saveToFile("file://" + path)) {
                 console.log("Lockshot captured for screen", wallpaper.currentScreenName);
                 GlobalStates.notifyLockshotPrepared(wallpaper.currentScreenName, path);
@@ -171,7 +209,7 @@ PanelWindow {
     }
 
     // QUICKSHELL-GIT: property string mpvShaderDir: Quickshell.cacheDir + "/mpv_shaders_" + (currentScreenName ? currentScreenName : "ALL")
-    property string mpvShaderDir: Quickshell.env("HOME") + "/.cache/nonchalant/mpv_shaders_" + (currentScreenName ? currentScreenName : "ALL")
+    property string mpvShaderDir: Quickshell.env("HOME") + "/.cache/rebos_shell/mpv_shaders_" + (currentScreenName ? currentScreenName : "ALL")
     property string mpvShaderPath: ""
     property bool mpvShaderReady: false
 
@@ -206,7 +244,7 @@ PanelWindow {
         when: GlobalStates.wallpaperManager !== null && GlobalStates.wallpaperManager !== wallpaper
     }
 
-    property string colorPresetsDir: Quickshell.env("HOME") + "/.config/nonchalant/colors"
+    property string colorPresetsDir: Quickshell.env("HOME") + "/.config/rebos_shell/colors"
     property string officialColorPresetsDir: decodeURIComponent(Qt.resolvedUrl("../../../../assets/colors").toString().replace("file://", ""))
     onColorPresetsDirChanged: console.log("Color Presets Directory:", colorPresetsDir)
     property list<string> colorPresets: []
@@ -238,13 +276,14 @@ PanelWindow {
     function applyColorPreset() {
         if (!activeColorPreset)
             return;
+        paletteError = "";
 
         var mode = Config.theme.lightMode ? "light.json" : "dark.json";
 
         var officialFile = officialColorPresetsDir + "/" + activeColorPreset + "/" + mode;
         var userFile = colorPresetsDir + "/" + activeColorPreset + "/" + mode;
         // QUICKSHELL-GIT: var dest = Quickshell.cachePath("colors.json");
-        var dest = Quickshell.env("HOME") + "/.cache/nonchalant/colors.json";
+        var dest = Quickshell.env("HOME") + "/.cache/rebos_shell/colors.json";
 
         // Try official first, then user. Use bash conditional.
         var cmd = "if [ -f '" + officialFile + "' ]; then cp '" + officialFile + "' '" + dest + "'; else cp '" + userFile + "' '" + dest + "'; fi";
@@ -288,7 +327,7 @@ PanelWindow {
 
         // Build the proxy path
         // QUICKSHELL-GIT: var thumbnailPath = Quickshell.cacheDir + "/thumbnails/" + relativeDir + "/" + thumbnailName;
-        var thumbnailPath = Quickshell.env("HOME") + "/.cache/nonchalant" + "/thumbnails/" + relativeDir + "/" + thumbnailName;
+        var thumbnailPath = Quickshell.env("HOME") + "/.cache/rebos_shell" + "/thumbnails/" + relativeDir + "/" + thumbnailName;
         return thumbnailPath;
     }
 
@@ -314,8 +353,8 @@ PanelWindow {
             return getThumbnailPath(filePath);
         }
 
-        // Imágenes y GIFs usan el archivo original para colores
-        return filePath;
+        // Match the displayed dither/tint; other styles return the original.
+        return DitheredWallpapers.source(filePath);
     }
 
     function getLockscreenFramePath(filePath) {
@@ -327,14 +366,14 @@ PanelWindow {
 
         // Para imágenes estáticas, usar el archivo original
         if (fileType === 'image') {
-            return filePath;
+            return DitheredWallpapers.source(filePath);
         }
 
         // Para videos y GIFs, usar el frame cacheado
         if (fileType === 'video' || fileType === 'gif') {
             var fileName = filePath.split('/').pop();
             // QUICKSHELL-GIT: var cachePath = Quickshell.cacheDir + "/lockscreen/" + fileName + ".jpg";
-            var cachePath = Quickshell.env("HOME") + "/.cache/nonchalant" + "/lockscreen/" + fileName + ".jpg";
+            var cachePath = Quickshell.env("HOME") + "/.cache/rebos_shell" + "/lockscreen/" + fileName + ".jpg";
             return cachePath;
         }
 
@@ -351,7 +390,7 @@ PanelWindow {
 
         var scriptPath = decodeURIComponent(Qt.resolvedUrl("../../../../scripts/lockwall.py").toString().replace("file://", ""));
         // QUICKSHELL-GIT: var dataPath = Quickshell.cacheDir;
-        var dataPath = Quickshell.env("HOME") + "/.cache/nonchalant";
+        var dataPath = Quickshell.env("HOME") + "/.cache/rebos_shell";
 
         lockscreenWallpaperScript.command = ["python3", scriptPath, filePath, dataPath];
 
@@ -410,9 +449,7 @@ PanelWindow {
             delayedThumbnailGen.start();
     }
 
-    onCurrentWallpaperChanged:
-    // Matugen se ejecuta manualmente en las funciones de cambio
-    {}
+    onCurrentWallpaperChanged: requestDitheredWallpapers()
 
     function setWallpaper(path, targetScreen = null) {
         if (GlobalStates.wallpaperManager && GlobalStates.wallpaperManager !== wallpaper) {
@@ -423,6 +460,11 @@ PanelWindow {
         console.log("setWallpaper called with:", path, "for screen:", targetScreen);
         initialLoadCompleted = true;
         var pathIndex = wallpaperPaths.indexOf(path);
+        // CLI selections can be outside the scanned wallpaper directory.
+        if (pathIndex === -1) {
+            wallpaperPaths = wallpaperPaths.concat([path]);
+            pathIndex = wallpaperPaths.length - 1;
+        }
         if (pathIndex !== -1) {
             if (getFileType(path) !== 'video') {
                 stopMpvpaper(targetScreen);
@@ -552,8 +594,8 @@ PanelWindow {
         Qt.callLater(() => runMatugenForCurrentWallpaper());
     }
 
-    // property string mpvSocket: "/tmp/nonchalant_mpv_socket"
-    property string mpvSocket: "/tmp/nonchalant_mpv_socket_" + (currentScreenName ? currentScreenName : "ALL")
+    // property string mpvSocket: "/tmp/rebos_shell_mpv_socket"
+    property string mpvSocket: "/tmp/rebos_shell_mpv_socket_" + (currentScreenName ? currentScreenName : "ALL")
 
     Process {
         id: globalKillMpvpaperProcess
@@ -568,6 +610,11 @@ PanelWindow {
     }
 
     function runMatugenForCurrentWallpaper() {
+        // Wait for the current tint, including when a prior conversion finishes late.
+        if (DitheredWallpapers.waiting(currentWallpaper)) {
+            DitheredWallpapers.request(currentWallpaper);
+            return;
+        }
         // Prefer the adapter value — the bound property can lag one tick after
         // clearing a preset when switching back to a matugen scheme.
         var preset = wallpaperConfig.adapter.activeColorPreset || "";
@@ -577,6 +624,7 @@ PanelWindow {
         }
 
         if (currentWallpaper && initialLoadCompleted) {
+            paletteError = "";
             console.log("Running Matugen for current wallpaper:", currentWallpaper);
 
             var fileType = getFileType(currentWallpaper);
@@ -602,7 +650,7 @@ PanelWindow {
                 wallpaperConfig.adapter.matugenScheme || "scheme-tonal-spot",
                 Config.theme.lightMode ? "light" : "dark",
                 decodeURIComponent(Qt.resolvedUrl("../../../../assets/matugen/config.toml").toString().replace("file://", "")),
-                Quickshell.env("HOME") + "/.cache/nonchalant/colors.json"
+                Quickshell.env("HOME") + "/.cache/rebos_shell/colors.json"
             ];
             console.log("Matugen command:", commandWithConfig.join(" "));
             matugenProcessWithConfig.command = commandWithConfig;
@@ -654,8 +702,9 @@ PanelWindow {
     Process {
         id: mpvSyncProcess
         running: false
-        command: ["bash", "-c", "for sock in /tmp/nonchalant_mpv_socket_*; do echo '{ \"command\": [\"set_property\", \"time-pos\", 0] }' | socat - \"$sock\" 2>/dev/null; done"]
+        command: ["bash", "-c", "for sock in /tmp/rebos_shell_mpv_socket_*; do echo '{ \"command\": [\"set_property\", \"time-pos\", 0] }' | socat - \"$sock\" 2>/dev/null; done"]
         onExited: code => {
+            wallpaper.paletteError = code === 0 ? "" : "Could not load the selected color preset.";
             console.log("Video sync broadcast completed with code:", code);
         }
     }
@@ -813,6 +862,7 @@ PanelWindow {
     }
 
     onEffectiveWallpaperChanged: {
+        requestDitheredWallpapers();
         if (getFileType(effectiveWallpaper) === "video") {
             shaderUpdateDebounce.restart();
         }
@@ -861,7 +911,7 @@ PanelWindow {
     FileView {
         id: wallpaperConfig
         // QUICKSHELL-GIT: path: Quickshell.cachePath("wallpapers.json")
-        path: Quickshell.env("HOME") + "/.cache/nonchalant/wallpapers.json"
+        path: Quickshell.env("HOME") + "/.cache/rebos_shell/wallpapers.json"
         watchChanges: true
 
         onLoaded: {
@@ -958,7 +1008,7 @@ PanelWindow {
         id: checkWallpapersJson
         running: false
         // QUICKSHELL-GIT: command: ["test", "-f", Quickshell.cachePath("wallpapers.json")]
-        command: ["test", "-f", Quickshell.env("HOME") + "/.cache/nonchalant/wallpapers.json"]
+        command: ["test", "-f", Quickshell.env("HOME") + "/.cache/rebos_shell/wallpapers.json"]
 
         onExited: function (exitCode) {
             if (exitCode !== 0) {
@@ -991,7 +1041,10 @@ PanelWindow {
             }
         }
 
-        onExited: {
+        onExited: (exitCode, exitStatus) => {
+            wallpaper.paletteError = exitCode === 0 ? "" : "Could not generate wallpaper colors. Check Matugen and the selected image.";
+            if (exitCode === 0)
+                Colors.refreshApps();
             console.log("Matugen with config finished");
         }
     }
@@ -1027,7 +1080,7 @@ PanelWindow {
         id: thumbnailGeneratorScript
         running: false
         // QUICKSHELL-GIT: command: ["python3", decodeURIComponent(Qt.resolvedUrl("../../../../scripts/thumbgen.py").toString().replace("file://", "")), Quickshell.cacheDir + "/wallpapers.json", Quickshell.cacheDir, fallbackDir]
-        command: ["python3", decodeURIComponent(Qt.resolvedUrl("../../../../scripts/thumbgen.py").toString().replace("file://", "")), Quickshell.env("HOME") + "/.cache/nonchalant" + "/wallpapers.json", Quickshell.env("HOME") + "/.cache/nonchalant", fallbackDir]
+        command: ["python3", decodeURIComponent(Qt.resolvedUrl("../../../../scripts/thumbgen.py").toString().replace("file://", "")), Quickshell.env("HOME") + "/.cache/rebos_shell" + "/wallpapers.json", Quickshell.env("HOME") + "/.cache/rebos_shell", fallbackDir]
 
         stdout: StdioCollector {
             onStreamFinished: {
@@ -1403,7 +1456,7 @@ PanelWindow {
         WallpaperImage {
             id: wallImage
             anchors.fill: parent
-            source: wallpaper.effectiveWallpaper
+            source: wallpaper.renderedWallpaper
         }
     }
 
@@ -1546,7 +1599,7 @@ PanelWindow {
                     source: parent.sourceFile ? "file://" + parent.sourceFile : ""
                     fillMode: wallpaper.wallpaperFillMode
                     asynchronous: true
-                    smooth: true
+                    smooth: !DitheredWallpapers.active
                     sourceSize.width: wallpaper.wallpaperMode === "center" ? 0 : wallpaper.width
                     sourceSize.height: wallpaper.wallpaperMode === "center" ? 0 : wallpaper.height
                     layer.enabled: parent.tint

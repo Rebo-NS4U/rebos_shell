@@ -457,6 +457,7 @@ if __name__ == "__main__":
                 "static": {
                     "cpu_model": monitor.cpu_model,
                     "gpu_names": [g["name"] for g in monitor.gpu_info],
+                    "gpu_pci_ids": [g["pci_id"] for g in monitor.gpu_info],
                     "gpu_vendors": [g["vendor"] for g in monitor.gpu_info],
                     "gpu_drivers": [
                         monitor._get_pci_driver(g["pci_id"])

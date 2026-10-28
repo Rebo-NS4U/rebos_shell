@@ -11,7 +11,7 @@ pinned and reserves space through `ReservationWindows`.
 - **Widgets**:
   - `clock/`: Time, date, weather integration (`Clock.qml`).
   - `systray/`: SNI-based system tray (`SysTray.qml`, `SysTrayItem.qml`).
-  - `workspaces/`: Compositor workspace visualization and `NonchalantTaskbar.qml`.
+  - `workspaces/`: Compositor workspace visualization and `RebosTaskbar.qml`.
   - `audioformat/`: DAC format and bit depth indicator (`AudioFormatBadge.qml`).
 - **System Indicators**:
   - `BatteryIndicator.qml`: Circular gauge with charge animations.
@@ -26,7 +26,7 @@ pinned and reserves space through `ReservationWindows`.
 | **Space reservation** | Parent: `shell.qml` → `ReservationWindows` | `exclusiveZone` calculation |
 | **Adding widgets** | `BarContent.qml` | Top/bottom bar layout orchestration |
 | **Clock/Weather** | `clock/Clock.qml` | Time, calendar popup trigger, weather details |
-| **Taskbar & Apps** | `workspaces/NonchalantTaskbar.qml` | Active app windows and workspace switching |
+| **Taskbar & Apps** | `workspaces/RebosTaskbar.qml` | Active app windows and workspace switching |
 | **Headphone Audio** | `audioformat/AudioFormatBadge.qml` | Sample rate & bit depth pill |
 
 ## CONVENTIONS

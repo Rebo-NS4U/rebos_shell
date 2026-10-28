@@ -1,5 +1,5 @@
 {
-  description = "Nonchalant Shell — a Niri-first Wayland desktop shell built with Quickshell";
+  description = "rebos_shell — a Niri-first Wayland desktop shell built with Quickshell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -7,16 +7,16 @@
 
   outputs = { self, nixpkgs, ... }:
     let
-      nonchalantLib = import ./nix/lib.nix { inherit nixpkgs; };
+      rebosShellLib = import ./nix/lib.nix { inherit nixpkgs; };
       version = nixpkgs.lib.removeSuffix "\n" (builtins.readFile ./version);
     in {
       nixosModules.default = { pkgs, lib, ... }: {
         imports = [ ./nix/modules ];
-        programs.nonchalant.enable = lib.mkDefault true;
-        programs.nonchalant.package = lib.mkDefault self.packages.${pkgs.system}.default;
+        programs.rebos_shell.enable = lib.mkDefault true;
+        programs.rebos_shell.package = lib.mkDefault self.packages.${pkgs.system}.default;
       };
 
-      packages = nonchalantLib.forAllSystems (system:
+      packages = rebosShellLib.forAllSystems (system:
         let
           pkgs = import nixpkgs {
             inherit system;
@@ -25,38 +25,38 @@
 
           lib = nixpkgs.lib;
 
-          Nonchalant = import ./nix/packages {
+          rebos_shell = import ./nix/packages {
             inherit pkgs lib self system version;
           };
         in {
-          default = Nonchalant;
-          Nonchalant = Nonchalant;
+          default = rebos_shell;
+          rebos_shell = rebos_shell;
         }
       );
 
-      devShells = nonchalantLib.forAllSystems (system:
+      devShells = rebosShellLib.forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          Nonchalant = self.packages.${system}.default;
+          rebos_shell = self.packages.${system}.default;
         in {
           default = pkgs.mkShell {
-            packages = [ Nonchalant ];
+            packages = [ rebos_shell ];
             shellHook = ''
-              export QML2_IMPORT_PATH="${Nonchalant}/lib/qt-6/qml:$QML2_IMPORT_PATH"
+              export QML2_IMPORT_PATH="${rebos_shell}/lib/qt-6/qml:$QML2_IMPORT_PATH"
               export QML_IMPORT_PATH="$QML2_IMPORT_PATH"
-              echo "Nonchalant Shell dev environment loaded."
+              echo "rebos_shell dev environment loaded."
             '';
           };
         }
       );
 
-      apps = nonchalantLib.forAllSystems (system:
+      apps = rebosShellLib.forAllSystems (system:
         let
-          Nonchalant = self.packages.${system}.default;
+          rebos_shell = self.packages.${system}.default;
         in {
           default = {
             type = "app";
-            program = "${Nonchalant}/bin/nonchalant";
+            program = "${rebos_shell}/bin/rebos_shell";
           };
         }
       );

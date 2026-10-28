@@ -14,6 +14,8 @@ Item {
     property bool isHovered: false
     property bool layerEnabled: false
     property bool flat: false
+    readonly property color trackColor: flat ? Styling.withOpacity(Colors.overSurface, 0.14) : Colors.outlineVariant
+    readonly property color progressColor: Battery.statusColor()
     property int meterSize: 36
 
     property real radius: 0
@@ -28,7 +30,7 @@ Item {
 
     // Function to interpolate color between green and red based on battery percentage
     function getBatteryColor() {
-        return Battery.statusColor();
+        return root.progressColor;
     }
 
     Layout.preferredWidth: meterSize
@@ -111,7 +113,7 @@ Item {
                     // Draw background track (remaining part)
                     let totalAngleRad = (360 - 2 * progressCanvas.gapAngle) * Math.PI / 180;
 
-                    ctx.strokeStyle = root.flat ? Qt.rgba(1, 1, 1, 0.14) : Colors.outlineVariant;
+                    ctx.strokeStyle = root.trackColor;
                     ctx.lineWidth = lineWidth;
                     ctx.beginPath();
                     ctx.arc(centerX, centerY, radius, baseStartAngle + progressAngleRad, baseStartAngle + totalAngleRad, false);
@@ -139,6 +141,11 @@ Item {
                     function onPercentageChanged() {
                         canvas.requestPaint();
                     }
+                }
+                Connections {
+                    target: root
+                    function onTrackColorChanged() { canvas.requestPaint(); }
+                    function onProgressColorChanged() { canvas.requestPaint(); }
                 }
             }
 

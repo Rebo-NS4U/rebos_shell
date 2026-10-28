@@ -32,9 +32,8 @@ StyledRect {
     Behavior on scale {
         enabled: (Config.animDuration ?? 0) > 0
         NumberAnimation {
-            duration: mouseArea.pressed ? 80 : 250
-            easing.type: mouseArea.pressed ? Easing.OutQuad : Easing.OutBack
-            easing.overshoot: 1.5
+            duration: mouseArea.pressed ? Motion.press : Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
 

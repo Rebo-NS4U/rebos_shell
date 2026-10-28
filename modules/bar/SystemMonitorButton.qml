@@ -12,7 +12,8 @@ ToggleButton {
     required property Item bar
     readonly property bool popupOpen: monitorPopup.isOpen
 
-    buttonIcon: Icons.circuitry
+    buttonIcon: Icons.heartbeat
+    iconColor: Colors.whiteValue
     tooltipText: "System Monitor"
     onToggle: function () { root.togglePopup(); }
 
@@ -31,6 +32,8 @@ ToggleButton {
 
     BarPopup {
         id: monitorPopup
+        closeOnFocusLost: !SystemResources.keepMonitorOpen
+        grabFocus: !SystemResources.keepMonitorOpen
         anchorItem: root
         variant: "transparent"
         popupPadding: 0

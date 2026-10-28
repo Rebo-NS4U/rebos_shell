@@ -16,6 +16,7 @@ Button {
     property bool iconTint: false
     property bool iconFullTint: false
     property int iconSize: 18
+    property color iconColor: Styling.srItem("overprimary") || Colors.foreground
     property bool enableShadow: false
     // Radius handling
     property real radius: 0
@@ -31,11 +32,8 @@ Button {
     Behavior on scale {
         enabled: (Config.animDuration ?? 0) > 0
         NumberAnimation {
-            duration: root.pressed
-                ? Math.round((Config.animDuration ?? 300) * 0.27)
-                : Math.round((Config.animDuration ?? 300) * 0.83)
-            easing.type: root.pressed ? Easing.OutQuad : Easing.OutBack
-            easing.overshoot: 1.5
+            duration: root.pressed ? Motion.press : Motion.feedback
+            easing.type: Motion.feedbackCurve
         }
     }
 
@@ -64,7 +62,7 @@ Button {
             Behavior on opacity {
                 enabled: (Config.animDuration ?? 0) > 0
                 NumberAnimation {
-                    duration: (Config.animDuration ?? 0) / 2
+                    duration: Motion.feedback
                 }
             }
         }
@@ -82,7 +80,7 @@ Button {
             textFormat: Text.RichText
             font.family: Icons.font
             font.pixelSize: 18
-            color: root.pressed ? Colors.background : (Styling.srItem("overprimary") || Colors.foreground)
+            color: root.pressed ? Colors.background : root.iconColor
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }

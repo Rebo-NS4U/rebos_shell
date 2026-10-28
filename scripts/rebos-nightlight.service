@@ -1,0 +1,10 @@
+[Unit]
+Description=Night Light display temperature backend
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=rs.wl-gammarelay
+ExecStart=%h/.local/bin/wl-gammarelay-rs
+Restart=on-failure
+RestartSec=2

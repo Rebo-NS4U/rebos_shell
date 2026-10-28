@@ -41,19 +41,19 @@ ClippingRectangle {
 
     // Color definitions for each time of day
     // Day colors (deep celestial sky)
-    property color dayTop: "#1c3866"
-    property color dayMid: "#254a85"
-    property color dayBot: "#305c9e"
+    property color dayTop: Colors.surfaceContainerHigh
+    property color dayMid: Colors.primaryContainer
+    property color dayBot: Colors.secondaryContainer
 
     // Evening colors (sunset)
-    property color eveningTop: "#1a1a2e"
-    property color eveningMid: "#e94560"
-    property color eveningBot: "#ffeaa7"
+    property color eveningTop: Colors.surfaceContainer
+    property color eveningMid: Colors.tertiaryContainer
+    property color eveningBot: Colors.secondaryContainer
 
     // Night colors (dark blue)
-    property color nightTop: "#0f0f23"
-    property color nightMid: "#1a1a3a"
-    property color nightBot: "#2d2d5a"
+    property color nightTop: Colors.surfaceContainerLowest
+    property color nightMid: Colors.surface
+    property color nightBot: Colors.surfaceContainer
 
     // Blended colors based on time
     readonly property var blend: WeatherService.effectiveTimeBlend
@@ -99,17 +99,17 @@ ClippingRectangle {
         gradient: Gradient {
             GradientStop {
                 position: 0.0
-                color: root.blend.night > 0.5 ? Qt.rgba(0.15, 0.15, 0.2, 0.9)   // Dark gray-blue at night
-                : root.blend.evening > 0.3 ? Qt.rgba(0.3, 0.25, 0.3, 0.85)  // Purple-gray at evening
-                : Qt.rgba(0.5, 0.52, 0.55, 0.8)  // Light gray during day
+                color: root.blend.night > 0.5 ? Styling.withOpacity(Colors.surfaceContainer, 0.9)   // Dark gray-blue at night
+                : root.blend.evening > 0.3 ? Styling.withOpacity(Colors.tertiaryContainer, 0.85)  // Purple-gray at evening
+                : Styling.withOpacity(Colors.outlineVariant, 0.8)  // Light gray during day
             }
             GradientStop {
                 position: 0.6
-                color: root.blend.night > 0.5 ? Qt.rgba(0.2, 0.2, 0.25, 0.7) : root.blend.evening > 0.3 ? Qt.rgba(0.35, 0.3, 0.35, 0.6) : Qt.rgba(0.6, 0.62, 0.65, 0.5)
+                color: root.blend.night > 0.5 ? Styling.withOpacity(Colors.surfaceContainerHigh, 0.7) : root.blend.evening > 0.3 ? Styling.withOpacity(Colors.tertiaryContainer, 0.6) : Styling.withOpacity(Colors.outline, 0.5)
             }
             GradientStop {
                 position: 1.0
-                color: Qt.rgba(0.5, 0.5, 0.5, 0.2)  // Fade out at bottom
+                color: Styling.withOpacity(Colors.overSurface, 0.2)  // Fade out at bottom
             }
         }
 
@@ -156,7 +156,7 @@ ClippingRectangle {
                 width: baseSize
                 height: baseSize
                 radius: baseSize / 2
-                color: "#FFFFFF"
+                color: Colors.overSurface
                 opacity: baseOpacity
 
                 SequentialAnimation on opacity {
@@ -221,11 +221,11 @@ ClippingRectangle {
                     orientation: Gradient.Horizontal
                     GradientStop {
                         position: 0.0
-                        color: Qt.rgba(1, 0.95, 0.7, 0.9)
+                        color: Styling.withOpacity(Colors.overSurface, 0.9)
                     }
                     GradientStop {
                         position: 1.0
-                        color: Qt.rgba(1, 0.95, 0.7, 0)
+                        color: Styling.withOpacity(Colors.overSurface, 0)
                     }
                 }
 
@@ -264,12 +264,12 @@ ClippingRectangle {
         property bool isStormy: root.weatherEffect === "rain" || root.weatherEffect === "thunderstorm" || root.weatherEffect === "drizzle"
 
         // Cloud base color adapts to time of day
-        property color cloudColorDark: root.blend.night > 0.5 ? Qt.rgba(0.2, 0.2, 0.25, 1)      // Dark blue-gray at night
-        : root.blend.evening > 0.3 ? Qt.rgba(0.35, 0.3, 0.35, 1)  // Purple-gray at evening
-        : isStormy ? Qt.rgba(0.4, 0.42, 0.45, 1)  // Dark gray for storms during day
-        : Qt.rgba(0.85, 0.87, 0.9, 1)  // Light gray-white for fair clouds
+        property color cloudColorDark: root.blend.night > 0.5 ? Colors.surfaceContainerHigh      // Dark blue-gray at night
+        : root.blend.evening > 0.3 ? Colors.tertiaryContainer  // Purple-gray at evening
+        : isStormy ? Colors.surfaceBright  // Dark gray for storms during day
+        : Colors.overSurfaceVariant  // Light gray-white for fair clouds
 
-        property color cloudColorLight: root.blend.night > 0.5 ? Qt.rgba(0.3, 0.3, 0.35, 1) : root.blend.evening > 0.3 ? Qt.rgba(0.45, 0.4, 0.45, 1) : isStormy ? Qt.rgba(0.5, 0.52, 0.55, 1) : Qt.rgba(0.92, 0.94, 0.96, 1)
+        property color cloudColorLight: root.blend.night > 0.5 ? Colors.outlineVariant : root.blend.evening > 0.3 ? Colors.tertiaryContainer : isStormy ? Colors.surfaceBright : Colors.overSurface
 
         // Background layer - larger, slower, more transparent clouds
         Repeater {
@@ -426,15 +426,15 @@ ClippingRectangle {
         gradient: Gradient {
             GradientStop {
                 position: 0.0
-                color: Qt.rgba(1, 1, 1, 0.1)
+                color: Styling.withOpacity(Colors.overSurface, 0.1)
             }
             GradientStop {
                 position: 0.5
-                color: Qt.rgba(1, 1, 1, 0.3)
+                color: Styling.withOpacity(Colors.overSurface, 0.3)
             }
             GradientStop {
                 position: 1.0
-                color: Qt.rgba(1, 1, 1, 0.4)
+                color: Styling.withOpacity(Colors.overSurface, 0.4)
             }
         }
 
@@ -451,7 +451,7 @@ ClippingRectangle {
                 y: baseY
                 width: parent.width * 1.5
                 height: 25 + (index * 5)
-                color: Qt.rgba(1, 1, 1, 0.15)
+                color: Styling.withOpacity(Colors.overSurface, 0.15)
                 radius: height / 2
 
                 NumberAnimation on x {
@@ -501,7 +501,7 @@ ClippingRectangle {
                 width: root.weatherEffect === "drizzle" ? 1 : 2
                 height: root.weatherEffect === "drizzle" ? 8 : 12
                 radius: 1
-                color: Qt.rgba(0.7, 0.85, 1, 0.6)
+                color: Styling.withOpacity(Colors.overSurface, 0.6)
                 rotation: -rainEffect.angle
 
                 SequentialAnimation {
@@ -564,7 +564,7 @@ ClippingRectangle {
                 width: 3 + Math.random() * 3
                 height: width
                 radius: width / 2
-                color: Qt.rgba(1, 1, 1, 0.7 + Math.random() * 0.3)
+                color: Styling.withOpacity(Colors.overSurface, 0.7 + Math.random() * 0.3)
 
                 SequentialAnimation on y {
                     loops: Animation.Infinite
@@ -628,7 +628,7 @@ ClippingRectangle {
                 width: 2
                 height: 15
                 radius: 1
-                color: Qt.rgba(0.7, 0.85, 1, 0.7)
+                color: Styling.withOpacity(Colors.overSurface, 0.7)
                 rotation: -thunderstormEffect.angle
 
                 SequentialAnimation {
@@ -672,7 +672,7 @@ ClippingRectangle {
             id: lightningFlash
             anchors.fill: parent
             radius: Styling.radius(0)
-            color: Qt.rgba(1, 1, 0.9, 0.8)
+            color: Styling.withOpacity(Colors.overSurface, 0.8)
             opacity: 0
             visible: opacity > 0
 
@@ -733,7 +733,7 @@ ClippingRectangle {
             anchors.fill: parent
 
             // Arc color based on time of day
-            property color arcColor: WeatherService.effectiveIsDay ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.4)
+            property color arcColor: WeatherService.effectiveIsDay ? Styling.withOpacity(Colors.overSurface, 0.7) : Styling.withOpacity(Colors.overSurface, 0.4)
 
             onPaint: {
                 var ctx = getContext("2d");
@@ -819,15 +819,15 @@ ClippingRectangle {
             gradient: Gradient {
                 GradientStop {
                     position: 0.0
-                    color: WeatherService.effectiveIsDay ? "#FFF9C4" : "#FFFFFF"
+                    color: WeatherService.effectiveIsDay ? Colors.primary : Colors.overSurface
                 }
                 GradientStop {
                     position: 0.5
-                    color: WeatherService.effectiveIsDay ? "#FFE082" : "#E8E8E8"
+                    color: WeatherService.effectiveIsDay ? Colors.secondary : Colors.overSurfaceVariant
                 }
                 GradientStop {
                     position: 1.0
-                    color: WeatherService.effectiveIsDay ? "#FFB74D" : "#C0C0C0"
+                    color: WeatherService.effectiveIsDay ? Colors.tertiary : Colors.outline
                 }
             }
 
@@ -838,7 +838,7 @@ ClippingRectangle {
                 height: parent.height + 12
                 radius: width / 2
                 color: "transparent"
-                border.color: WeatherService.effectiveIsDay ? Qt.rgba(1, 0.95, 0.7, 0.4) : Qt.rgba(1, 1, 1, 0.2)
+                border.color: WeatherService.effectiveIsDay ? Styling.withOpacity(Colors.overSurface, 0.4) : Styling.withOpacity(Colors.overSurface, 0.2)
                 border.width: 3
                 z: -1
             }
@@ -850,7 +850,7 @@ ClippingRectangle {
                 height: parent.height + 6
                 radius: width / 2
                 color: "transparent"
-                border.color: WeatherService.effectiveIsDay ? Qt.rgba(1, 0.95, 0.7, 0.6) : Qt.rgba(1, 1, 1, 0.3)
+                border.color: WeatherService.effectiveIsDay ? Styling.withOpacity(Colors.overSurface, 0.6) : Styling.withOpacity(Colors.overSurface, 0.3)
                 border.width: 2
                 z: -1
             }
@@ -877,7 +877,7 @@ ClippingRectangle {
             id: tempText
             visible: WeatherService.dataAvailable
             text: Math.round(WeatherService.currentTemp) + "°" + Config.weather.unit
-            color: "#FFFFFF"
+            color: Colors.overSurface
             font.family: Config.theme.font
             font.pixelSize: Config.theme.fontSize + 12
             font.weight: Font.Bold
@@ -891,7 +891,7 @@ ClippingRectangle {
             text: Icons.alert
             font.family: Icons.font
             font.pixelSize: Config.theme.fontSize + 10
-            color: "#FFFFFF"
+            color: Colors.overSurface
         }
 
     }
@@ -905,7 +905,7 @@ ClippingRectangle {
         renderType: Text.NativeRendering
         font.hintingPreference: Font.PreferFullHinting
         text: WeatherService.dataAvailable ? WeatherService.effectiveWeatherDescription : "Error"
-        color: "#FFFFFF"
+        color: Colors.overSurface
         font.family: Config.theme.font
         font.pixelSize: Config.theme.fontSize - 1
         font.weight: Font.Bold
@@ -924,7 +924,7 @@ ClippingRectangle {
         width: 20
         height: 20
         radius: 10
-        color: WeatherService.debugMode ? Styling.srItem("overprimary") : "#555"
+        color: WeatherService.debugMode ? Styling.srItem("overprimary") : Colors.outline
         opacity: (debugButtonHover.containsMouse || WeatherService.debugMode) ? 0.8 : 0
         visible: root.showDebugControls
 
@@ -942,7 +942,7 @@ ClippingRectangle {
             text: "D"
             font.pixelSize: 10
             font.bold: true
-            color: "#fff"
+            color: Colors.overSurface
         }
 
         MouseArea {

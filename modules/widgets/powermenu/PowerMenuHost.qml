@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Wayland._BackgroundEffect
 import Quickshell.Wayland
 import qs.modules.components
 import qs.modules.theme
@@ -89,7 +90,7 @@ Item {
         screen: root.panel?.targetScreen ?? (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
         visible: false
 
-        WlrLayershell.namespace: "nonchalant:powermenu"
+        WlrLayershell.namespace: "rebos_shell:powermenu"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: root.menuOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
@@ -99,6 +100,9 @@ Item {
         anchors.left: true
         anchors.right: true
         WlrLayershell.margins.bottom: 0
+
+
+        BackgroundEffect.blurRegion: BlurRegion { target: powerWrapper }
 
         color: "transparent"
         implicitHeight: 80 + root.bottomOffset

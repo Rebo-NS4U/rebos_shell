@@ -13,13 +13,6 @@ Item {
     property int barOuterMargin: 0
     property string barPosition: "top"
 
-    property bool sidebarEnabled: false
-    property bool sidebarPinned: false
-    property int sidebarWidth: 0
-    property string sidebarPosition: "right"
-
-    readonly property int sidebarMargin: 4
-
     Item {
         id: noInputRegion
         width: 0
@@ -39,7 +32,7 @@ Item {
         }
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "nonchalant:reservation:top"
+        WlrLayershell.namespace: "rebos_shell:reservation:top"
 
         exclusiveZone: Config.barReady && root.barEnabled && root.barPosition === "top"
             && ((Config.bar?.style ?? "default") !== "island" || (Config.bar?.pinned ?? false))
@@ -64,7 +57,7 @@ Item {
         }
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "nonchalant:reservation:bottom"
+        WlrLayershell.namespace: "rebos_shell:reservation:bottom"
 
         exclusiveZone: Config.barReady && root.barEnabled && root.barPosition === "bottom"
             && ((Config.bar?.style ?? "default") !== "island" || (Config.bar?.pinned ?? false))
@@ -77,55 +70,4 @@ Item {
         }
     }
 
-    PanelWindow {
-        screen: root.screen
-        visible: true
-        implicitWidth: Math.max(1, exclusiveZone)
-        color: "transparent"
-        anchors {
-            top: true
-            bottom: true
-            left: true
-        }
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "nonchalant:reservation:left"
-
-        exclusiveZone: root.sidebarEnabled
-            && root.sidebarPinned
-            && root.sidebarPosition === "left"
-            ? root.sidebarWidth + root.sidebarMargin
-            : 0
-        exclusionMode: exclusiveZone > 0 ? ExclusionMode.Normal : ExclusionMode.Ignore
-
-        mask: Region {
-            item: noInputRegion
-        }
-    }
-
-    PanelWindow {
-        screen: root.screen
-        visible: true
-        implicitWidth: Math.max(1, exclusiveZone)
-        color: "transparent"
-        anchors {
-            top: true
-            bottom: true
-            right: true
-        }
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        WlrLayershell.namespace: "nonchalant:reservation:right"
-
-        exclusiveZone: root.sidebarEnabled
-            && root.sidebarPinned
-            && root.sidebarPosition === "right"
-            ? root.sidebarWidth + root.sidebarMargin
-            : 0
-        exclusionMode: exclusiveZone > 0 ? ExclusionMode.Normal : ExclusionMode.Ignore
-
-        mask: Region {
-            item: noInputRegion
-        }
-    }
 }

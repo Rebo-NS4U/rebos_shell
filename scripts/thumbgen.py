@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Thumbnail Generator for Nonchalant Wallpaper System
+Thumbnail Generator for rebos_shell Wallpaper System
 Generates thumbnails for video files, images, and GIFs using FFmpeg and ImageMagick with multithreading.
 """
 
@@ -353,7 +353,7 @@ class ThumbnailGenerator:
 
     def run(self) -> int:
         """Main execution function."""
-        print("🖼️  Nonchalant Thumbnail Generator")
+        print("🖼️  rebos_shell Thumbnail Generator")
         print("=" * 40)
 
         # Load configuration

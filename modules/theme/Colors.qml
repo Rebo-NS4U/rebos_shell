@@ -3,17 +3,26 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.config
+import "ShellStyles.js" as ShellStyles
 
 FileView {
     id: colors
     // QUICKSHELL-GIT: path: Quickshell.cachePath("colors.json")
-    path: Quickshell.env("HOME") + "/.cache/nonchalant/colors.json"
+    path: Quickshell.env("HOME") + "/.cache/rebos_shell/colors.json"
     preload: true
     watchChanges: true
     onFileChanged: {
         reload();
+    }
+    // Generate only after the new palette has finished loading.
+    onLoaded: {
+        if (forceExport) {
+            generatedPalette = "";
+            forceExport = false;
+        }
         generationTimer.restart();
     }
+    onLoadFailed: generationTimer.restart()
 
     property Connections oledWatcher: Connections {
         id: oledWatcher
@@ -55,17 +64,94 @@ FileView {
         id: discordGenerator
     }
 
+    property string generatedPalette: ""
+    property bool forceExport: false
+    property bool refreshPending: false
+    readonly property bool writersBusy: qtCtGenerator.writer.busy || gtkGenerator.writerProcess.busy
+        || pywalGenerator.writerProcess.busy || kittyGenerator.writerProcess.busy
+        || nvChadGenerator.writerProcess.busy || discordGenerator.writerProcess.busy
+    readonly property bool writersSucceeded: qtCtGenerator.writer.succeeded && gtkGenerator.writerProcess.succeeded
+        && pywalGenerator.writerProcess.succeeded && kittyGenerator.writerProcess.succeeded
+        && nvChadGenerator.writerProcess.succeeded && discordGenerator.writerProcess.succeeded
+    readonly property string appStyle: Config.theme?.shellStyle ?? "glass"
+    readonly property real appOpacity: Config.theme?.srBg?.opacity ?? 1
+    onAppStyleChanged: generationTimer.restart()
+    onAppOpacityChanged: generationTimer.restart()
+
+    function refreshApps(): void {
+        forceExport = true;
+        reload();
+    }
+
+    property IpcHandler themeIpc: IpcHandler {
+        target: "theme"
+        function sync(): void {
+            colors.refreshApps();
+        }
+    }
+
     property Timer generationTimer: Timer {
         id: generationTimer
         interval: 100
         repeat: false
         onTriggered: {
-            qtCtGenerator.generate(colors);
-            gtkGenerator.generate(colors);
-            pywalGenerator.generate(colors);
-            kittyGenerator.generate(colors);
-            nvChadGenerator.generate(colors);
-            discordGenerator.generate(colors);
+            const raw = {};
+            for (const name of colors.availableColorNames) raw[name] = colors[name];
+            const palette = ShellStyles.appPalette(colors.appStyle, raw, colors.appOpacity);
+            for (const name of colors.availableColorNames) palette[name] = Qt.color(palette[name]);
+            palette.availableColorNames = colors.availableColorNames;
+            const signature = JSON.stringify(palette);
+            if (signature === colors.generatedPalette)
+                return;
+            qtCtGenerator.generate(palette);
+            gtkGenerator.generate(palette);
+            pywalGenerator.generate(palette);
+            kittyGenerator.generate(palette);
+            nvChadGenerator.generate(palette);
+            discordGenerator.generate(palette);
+            colors.generatedPalette = signature;
+            colors.refreshPending = true;
+            appRefreshTimer.restart();
+        }
+    }
+
+    // Wait for every serialized exporter, including Spicetify, before notifying apps.
+    // A burst of selections shares one refresh using the latest completed files.
+    property Timer appRefreshTimer: Timer {
+        id: appRefreshTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            if (colors.writersBusy || generationTimer.running || appRefresher.running) {
+                restart();
+                return;
+            }
+            if (!colors.refreshPending)
+                return;
+            colors.refreshPending = false;
+            if (!colors.writersSucceeded) {
+                console.warn("App refresh skipped because a color export failed");
+                colors.generatedPalette = "";
+                return;
+            }
+            appRefresher.running = true;
+        }
+    }
+
+    property Process appRefresher: Process {
+        id: appRefresher
+        command: ["python3", Quickshell.shellPath("scripts/reload_theme_apps.py")]
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0)
+                console.warn("App color refresh failed:", exitCode);
+            if (colors.refreshPending)
+                appRefreshTimer.restart();
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (text.trim())
+                    console.warn("App color refresh:", text.trim());
+            }
         }
     }
 
@@ -275,13 +361,13 @@ FileView {
     property color yellowValue: adapter.yellowValue
     property color sourceColor: adapter.sourceColor
 
-    property color criticalText: "#FF6B08"
-    property color criticalRed: "#FF0028"
+    property color criticalText: adapter.yellow
+    property color criticalRed: adapter.error
 
     // Semantic aliases
     property color warning: adapter.yellow
     property color success: adapter.green
 
     // List of available color names for color pickers (excludes internal/source colors)
-    readonly property var availableColorNames: ["background", "surface", "surfaceBright", "surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest", "surfaceContainerLow", "surfaceContainerLowest", "surfaceDim", "surfaceTint", "surfaceVariant", "primary", "primaryContainer", "primaryFixed", "primaryFixedDim", "secondary", "secondaryContainer", "secondaryFixed", "secondaryFixedDim", "tertiary", "tertiaryContainer", "tertiaryFixed", "tertiaryFixedDim", "error", "errorContainer", "overBackground", "overSurface", "overSurfaceVariant", "overPrimary", "overPrimaryContainer", "overPrimaryFixed", "overPrimaryFixedVariant", "overSecondary", "overSecondaryContainer", "overSecondaryFixed", "overSecondaryFixedVariant", "overTertiary", "overTertiaryContainer", "overTertiaryFixed", "overTertiaryFixedVariant", "overError", "overErrorContainer", "outline", "outlineVariant", "inversePrimary", "inverseSurface", "inverseOnSurface", "shadow", "scrim", "blue", "blueContainer", "overBlue", "overBlueContainer", "lightBlue", "cyan", "cyanContainer", "overCyan", "overCyanContainer", "lightCyan", "green", "greenContainer", "overGreen", "overGreenContainer", "lightGreen", "magenta", "magentaContainer", "overMagenta", "overMagentaContainer", "lightMagenta", "red", "redContainer", "overRed", "overRedContainer", "lightRed", "yellow", "yellowContainer", "overYellow", "overYellowContainer", "lightYellow", "white", "whiteContainer", "overWhite", "overWhiteContainer"]
+    readonly property list<string> availableColorNames: ["background", "surface", "surfaceBright", "surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest", "surfaceContainerLow", "surfaceContainerLowest", "surfaceDim", "surfaceTint", "surfaceVariant", "primary", "primaryContainer", "primaryFixed", "primaryFixedDim", "secondary", "secondaryContainer", "secondaryFixed", "secondaryFixedDim", "tertiary", "tertiaryContainer", "tertiaryFixed", "tertiaryFixedDim", "error", "errorContainer", "overBackground", "overSurface", "overSurfaceVariant", "overPrimary", "overPrimaryContainer", "overPrimaryFixed", "overPrimaryFixedVariant", "overSecondary", "overSecondaryContainer", "overSecondaryFixed", "overSecondaryFixedVariant", "overTertiary", "overTertiaryContainer", "overTertiaryFixed", "overTertiaryFixedVariant", "overError", "overErrorContainer", "outline", "outlineVariant", "inversePrimary", "inverseSurface", "inverseOnSurface", "shadow", "scrim", "blue", "blueContainer", "overBlue", "overBlueContainer", "lightBlue", "cyan", "cyanContainer", "overCyan", "overCyanContainer", "lightCyan", "green", "greenContainer", "overGreen", "overGreenContainer", "lightGreen", "magenta", "magentaContainer", "overMagenta", "overMagentaContainer", "lightMagenta", "red", "redContainer", "overRed", "overRedContainer", "lightRed", "yellow", "yellowContainer", "overYellow", "overYellowContainer", "lightYellow", "white", "whiteContainer", "overWhite", "overWhiteContainer"]
 }

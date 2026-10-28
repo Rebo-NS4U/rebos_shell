@@ -6,7 +6,6 @@ import Quickshell.Io
 import qs.modules.theme
 import qs.config
 import qs.modules.components
-import org.kde.syntaxhighlighting
 
 ColumnLayout {
     id: root
@@ -116,6 +115,7 @@ ColumnLayout {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             id: codeText
+            readonly property string highlightLanguage: root.language
             anchors.fill: parent
             anchors.margins: 8
             text: root.code
@@ -127,11 +127,22 @@ ColumnLayout {
             wrapMode: TextEdit.Wrap
             textFormat: TextEdit.PlainText
 
-            SyntaxHighlighter {
-                textEdit: codeText
-                repository: Repository
-                definition: Repository.definitionForName(root.language)
-                theme: Repository.theme("Breeze Dark")
+            Component.onCompleted: {
+                // Highlighting is optional; a missing KDE module must not stop the shell.
+                try {
+                    Qt.createQmlObject(`
+                        import QtQuick
+                        import org.kde.syntaxhighlighting
+                        SyntaxHighlighter {
+                            textEdit: parent
+                            repository: Repository
+                            definition: Repository.definitionForName(parent.highlightLanguage)
+                            theme: Repository.theme("Breeze Dark")
+                        }
+                    `, codeText, "OptionalCodeHighlighter");
+                } catch (error) {
+                    console.warn("Code highlighting unavailable: " + error.message);
+                }
             }
         }
     }

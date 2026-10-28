@@ -4,13 +4,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.modules.globals
 
 Singleton {
     id: root
 
     property bool enabled: false
-    property bool discovering: false
+    readonly property bool discovering: scanProcess.running
     property bool connected: false
     property int connectedDevices: 0
     property string firstConnectedDeviceName: ""
@@ -18,12 +17,14 @@ Singleton {
     readonly property list<BluetoothDevice> devices: []
     
     // Cached sorted device list - only updates when devices change
-    property list<var> friendlyDeviceList: []
+    property list<BluetoothDevice> friendlyDeviceList: []
     
     // Queue for batching updateInfo calls
-    property var pendingInfoUpdates: []
+    property list<BluetoothDevice> pendingInfoUpdates: []
     property bool isProcessingInfoQueue: false
-    property bool isUpdating: false
+    readonly property bool isUpdating: pendingActions > 0
+    property int pendingActions: 0
+    property string lastError: ""
     property bool wasEnabledBeforeSleep: false
 
     Connections {
@@ -34,8 +35,9 @@ Singleton {
             if (discovering) {
                 root.stopDiscovery();
             }
-            scanTimer.stop();
+
             infoQueueTimer.stop();
+            root.isProcessingInfoQueue = false;
         }
         function onWakingUp() {
             // Re-sync status after wake
@@ -43,7 +45,7 @@ Singleton {
 
             // Restore state if it was enabled
             if (root.wasEnabledBeforeSleep) {
-                root.setEnabled(true);
+                root.setEnabled(true, false);
             }
         }
     }
@@ -134,7 +136,7 @@ Singleton {
             
             onExited: (exitCode, exitStatus) => {
                 if (exitCode === 0) resolve(buffer.trim());
-                else reject(errorBuffer.trim() || `Process exited with code ${exitCode}`);
+                else reject(errorBuffer.trim() || buffer.trim() || `Process exited with code ${exitCode}`);
                 destroy();
             }
         }
@@ -144,7 +146,7 @@ Singleton {
         return new Promise((resolve, reject) => {
             const proc = asyncProcessComp.createObject(root, {
                 command: command,
-                environment: environment,
+                environment: Object.assign({ LANG: "C.UTF-8", LC_ALL: "C.UTF-8" }, environment),
                 resolve: resolve,
                 reject: reject
             });
@@ -152,83 +154,95 @@ Singleton {
         });
     }
 
-    // Control functions
-    function setEnabled(value: bool): void {
-        if (SuspendManager.isSuspending) return;
-        isUpdating = true;
-        runAsync(["bluetoothctl", "power", value ? "on" : "off"]).then(() => {
-            updateStatus();
-            if (value) updateDevices();
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
+    function runAction(command): var {
+        pendingActions++;
+        lastError = "";
+        return runAsync(command).then(result => {
+            pendingActions--;
+            updateDevices();
+            return result;
+        }, error => {
+            pendingActions--;
+            lastError = String(error);
+            throw error;
         });
+    }
+
+    // Start discovery only after the adapter has finished powering on.
+    function setEnabled(value: bool, scanAfterPowerOn: bool): void {
+        if (SuspendManager.isSuspending || isUpdating) return;
+        if (!value) stopDiscovery();
+        // A software rfkill block must be cleared before BlueZ can power on.
+        // Powering off stays within BlueZ so other radios are unaffected.
+        const unblock = value
+            ? runAction(["rfkill", "unblock", "bluetooth"])
+            : Promise.resolve();
+        unblock.then(() => runAction(["bluetoothctl", "power", value ? "on" : "off"])).then(() => {
+            enabled = value;
+            if (value && scanAfterPowerOn) startDiscovery();
+        }).catch(error => {});
     }
 
     function toggle(): void {
-        setEnabled(!enabled);
+        setEnabled(!enabled, false);
     }
 
     function startDiscovery(): void {
-        if (enabled && !SuspendManager.isSuspending) {
-            discovering = true;
-            runAsync(["bluetoothctl", "scan", "on"]).then(() => {
-                scanTimer.restart();
-            }).catch(e => {
-                discovering = false;
-            });
-        }
+        if (!enabled || SuspendManager.isSuspending) return;
+        if (scanProcess.running) return;
+        lastError = "";
+        scanProcess.errorBuffer = "";
+        scanProcess.running = true;
     }
 
     function stopDiscovery(): void {
-        discovering = false;
-        runAsync(["bluetoothctl", "scan", "off"]).then(() => {
-            scanTimer.stop();
-        }).catch(e => {});
+        // BlueZ discovery belongs to its requesting client. Ending that client
+        // releases only our session, without interfering with other scanners.
+        scanProcess.running = false;
     }
 
-    function connectDevice(address: string): void {
-        isUpdating = true;
-        runAsync(["bluetoothctl", "connect", address]).then(() => {
-            updateDevices();
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
-        });
+    Process {
+        id: scanProcess
+        command: ["bluetoothctl", "--timeout", "15", "scan", "on"]
+        environment: ({ LANG: "C.UTF-8", LC_ALL: "C.UTF-8" })
+        property string errorBuffer: ""
+        stdout: SplitParser {
+            onRead: data => {
+                if (data.includes("Failed") || data.includes("not available"))
+                    scanProcess.errorBuffer += data + "\n";
+                if (data.includes("Device ")) root.updateDevices();
+            }
+        }
+        stderr: SplitParser {
+            onRead: data => scanProcess.errorBuffer += data + "\n"
+        }
+        onExited: (code, status) => {
+            if (scanProcess.errorBuffer.trim())
+                root.lastError = scanProcess.errorBuffer.trim();
+            else if (code !== 0 && status === 0)
+                root.lastError = "Bluetooth discovery failed (" + code + ")";
+            root.updateDevices();
+        }
     }
 
-    function disconnectDevice(address: string): void {
-        isUpdating = true;
-        runAsync(["bluetoothctl", "disconnect", address]).then(() => {
-            updateDevices();
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
-        });
+    function connectDevice(address: string): var {
+        return runAction(["bluetoothctl", "connect", address]);
     }
 
-    function pairDevice(address: string): void {
-        isUpdating = true;
-        runAsync(["bluetoothctl", "pair", address]).then(() => {
-            updateDevices();
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
-        });
+    function disconnectDevice(address: string): var {
+        return runAction(["bluetoothctl", "disconnect", address]);
     }
 
-    function trustDevice(address: string): void {
-        runAsync(["bluetoothctl", "trust", address]).catch(e => {});
+    function pairDevice(address: string): var {
+        return runAction(["python3", Qt.resolvedUrl("../../scripts/bluetooth_pair.py").toString().replace(/^file:\/\//, ""), address]);
     }
 
-    function removeDevice(address: string): void {
-        isUpdating = true;
-        runAsync(["bluetoothctl", "remove", address]).then(() => {
-            updateDevices();
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
-        });
+    function trustDevice(address: string): var {
+        return runAction(["bluetoothctl", "trust", address]);
+    }
+
+    function removeDevice(address: string): var {
+        return runAction(["bluetoothctl", "remove", address]);
     }
 
     property bool _isUpdatingProcess: false
@@ -242,7 +256,8 @@ Singleton {
     }
 
     function updateStatus() {
-        updateDebouncer.restart();
+        // Continuous advertisements must not postpone the update indefinitely.
+        if (!updateDebouncer.running) updateDebouncer.start();
     }
 
     function updateDevices() {
@@ -268,7 +283,7 @@ Singleton {
         stdout: SplitParser {
             onRead: (data) => {
                 if (data && (data.includes("Connected") || data.includes("Powered") || data.includes("PropertiesChanged") || data.includes("InterfacesAdded") || data.includes("InterfacesRemoved"))) {
-                    updateDebouncer.restart();
+                    root.updateStatus();
                 }
             }
         }
@@ -283,14 +298,6 @@ Singleton {
         onTriggered: {
             root.updateStatus();
         }
-    }
-
-    Timer {
-        id: scanTimer
-        interval: 15000
-        running: false
-        repeat: false
-        onTriggered: root.stopDiscovery()
     }
 
     // Unified single-process status and device extraction (atomic read in ~25ms)
@@ -324,7 +331,6 @@ Singleton {
                     root.connected = false;
                     root.connectedDevices = 0;
                     root.firstConnectedDeviceName = "";
-                    root.discovering = false;
                     for (let i = 0; i < root.devices.length; i++) {
                         const dev = root.devices[i];
                         if (dev) dev.connected = false;
@@ -378,6 +384,7 @@ Singleton {
                 for (let i = rDevices.length - 1; i >= 0; i--) {
                     const rd = rDevices[i];
                     if (!deviceDataList.find(d => d.address === rd.address)) {
+                        root.pendingInfoUpdates = root.pendingInfoUpdates.filter(device => device !== rd);
                         rDevices.splice(i, 1);
                         rd.destroy();
                     }
@@ -391,23 +398,20 @@ Singleton {
                         if (existing.name !== data.name) {
                             existing.name = data.name;
                         }
+                        const connectionChanged = existing.connected !== data.connected;
                         existing.connected = data.connected;
-                        existing.paired = true;
-                        if (data.connected && existing.battery < 0) {
+                        if (connectionChanged || (data.connected && existing.battery < 0)) {
                             root.queueInfoUpdate(existing);
                         }
                     } else {
                         const newDevice = deviceComp.createObject(root, {
                             address: data.address,
                             name: data.name,
-                            connected: data.connected,
-                            paired: true
+                            connected: data.connected
                         });
                         newDevice.infoUpdated.connect(root.onDeviceInfoUpdated);
                         rDevices.push(newDevice);
-                        if (data.connected) {
-                            root.queueInfoUpdate(newDevice);
-                        }
+                        root.queueInfoUpdate(newDevice);
                     }
                 }
 
@@ -428,6 +432,8 @@ Singleton {
         id: deviceComp
         BluetoothDevice {}
     }
+
+    Component.onCompleted: initialize()
 
     property bool _initialized: false
 

@@ -8,7 +8,7 @@ Singleton {
 
     // usage.json path
     // QUICKSHELL-GIT: property string usageFilePath: Quickshell.cachePath("usage.json")
-    property string usageFilePath: Quickshell.env("HOME") + "/.cache/nonchalant/usage.json"
+    property string usageFilePath: Quickshell.env("HOME") + "/.cache/rebos_shell/usage.json"
 
     // Cache: { appId: { count, lastUsed } }
     property var usageData: ({})

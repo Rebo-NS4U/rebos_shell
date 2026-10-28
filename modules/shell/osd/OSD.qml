@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland._BackgroundEffect
 import Quickshell.Wayland
 import qs.modules.components
 import qs.modules.theme
@@ -16,7 +17,7 @@ PanelWindow {
     screen: targetScreen
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "nonchalant:osd"
+    WlrLayershell.namespace: "rebos_shell:osd"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
 
@@ -32,8 +33,8 @@ PanelWindow {
     Behavior on revealProgress {
         enabled: Config.animDuration > 0
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: GlobalStates.osdVisible ? Easing.OutCubic : Easing.InCubic
+            duration: GlobalStates.osdVisible ? Motion.enter : Motion.exit
+            easing.type: GlobalStates.osdVisible ? Motion.enterCurve : Motion.exitCurve
         }
     }
 
@@ -43,6 +44,9 @@ PanelWindow {
 
     color: "transparent"
     implicitHeight: cardHeight + bottomOffset
+
+
+    BackgroundEffect.blurRegion: BlurRegion { target: osdRect }
 
     visible: osdShown
 
@@ -193,7 +197,7 @@ PanelWindow {
 
     Timer {
         id: closeTimer
-        interval: Config.animDuration > 0 ? Config.animDuration + 40 : 40
+        interval: Motion.exit + 40
         onTriggered: {
             if (!GlobalStates.osdVisible)
                 root.osdShown = false;

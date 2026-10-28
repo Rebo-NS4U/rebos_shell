@@ -13,7 +13,7 @@ import qs.config
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
@@ -41,7 +41,7 @@ Item {
         id: deviceList
         anchors.fill: parent
         clip: true
-        spacing: 4
+        spacing: 12
         cacheBuffer: 1000
         reuseItems: true
 
@@ -49,13 +49,28 @@ Item {
 
         header: Item {
             width: deviceList.width
-            height: titlebar.height + 8
+            height: titlebar.height + 8 + (errorText.visible ? errorText.implicitHeight + 8 : 0)
+
+            StyledText {
+                id: errorText
+                anchors.top: titlebar.bottom
+                anchors.topMargin: 8
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: root.contentWidth
+                visible: BluetoothService.lastError.length > 0
+                text: BluetoothService.lastError
+                color: Colors.error
+                wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+            }
 
             PanelTitlebar {
                 id: titlebar
                 width: root.contentWidth
                 anchors.horizontalCenter: parent.horizontalCenter
                 title: "Bluetooth"
+            description: "Pair devices and manage Bluetooth connections."
                 showToggle: true
                 toggleChecked: BluetoothService.enabled
 
@@ -79,10 +94,7 @@ Item {
                 ]
 
                 onToggleChanged: checked => {
-                    BluetoothService.setEnabled(checked);
-                    if (checked) {
-                        BluetoothService.startDiscovery();
-                    }
+                    BluetoothService.setEnabled(checked, checked);
                 }
             }
         }
@@ -101,7 +113,7 @@ Item {
         }
 
         // Empty state
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             anchors.centerIn: parent

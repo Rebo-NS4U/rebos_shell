@@ -7,11 +7,12 @@ import Quickshell
 import qs.modules.theme
 import qs.modules.components
 import qs.config
+import qs.modules.bar
 
 Item {
     id: root
 
-    property int maxContentWidth: 480
+    property int maxContentWidth: 760
     readonly property int contentWidth: Math.min(width, maxContentWidth)
     readonly property real sideMargin: (width - contentWidth) / 2
 
@@ -47,58 +48,17 @@ Item {
 
     property string currentSection: ""
 
-    component SectionButton: StyledRect {
-        id: sectionBtn
-        required property string text
+    component SectionButton: SettingsSectionCard {
         required property string sectionId
-
-        property bool isHovered: false
-
-        variant: isHovered ? "focus" : "pane"
-        Layout.fillWidth: true
-        Layout.preferredHeight: 56
-        radius: Styling.radius(0)
-
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 16
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: sectionBtn.text
-                font.family: Config.theme.font
-                font.pixelSize: Styling.fontSize(0)
-                font.bold: true
-                color: Colors.overBackground
-                Layout.fillWidth: true
-            }
-
-            Text {
-                renderType: Text.NativeRendering
-                font.hintingPreference: Font.PreferFullHinting
-                text: Icons.caretRight
-                font.family: Icons.font
-                font.pixelSize: 20
-                color: Colors.overSurfaceVariant
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onEntered: sectionBtn.isHovered = true
-            onExited: sectionBtn.isHovered = false
-            onClicked: root.currentSection = sectionBtn.sectionId
-        }
+        objectName: "settings-section-" + sectionId
+        onClicked: root.currentSection = sectionId
     }
 
     component ActionButton: StyledRect {
         id: actionBtn
         required property string text
         property string icon: ""
+        property string trailingIcon: Icons.arrowSquareOut
         signal clicked
 
         property bool isHovered: false
@@ -113,17 +73,17 @@ Item {
             anchors.margins: 16
             spacing: 16
 
-            Text {
+            StyledText {
                 renderType: Text.NativeRendering
                 font.hintingPreference: Font.PreferFullHinting
                 text: actionBtn.icon
                 font.family: Icons.font
-                font.pixelSize: 20
+                font.pixelSize: Styling.fontSize(6)
                 color: Colors.overSurfaceVariant
                 visible: actionBtn.icon !== ""
             }
 
-            Text {
+            StyledText {
                 renderType: Text.NativeRendering
                 font.hintingPreference: Font.PreferFullHinting
                 text: actionBtn.text
@@ -134,12 +94,13 @@ Item {
                 Layout.fillWidth: true
             }
 
-            Text {
+            StyledText {
                 renderType: Text.NativeRendering
                 font.hintingPreference: Font.PreferFullHinting
-                text: Icons.arrowSquareOut
+                text: actionBtn.trailingIcon
+                visible: actionBtn.trailingIcon !== ""
                 font.family: Icons.font
-                font.pixelSize: 18
+                font.pixelSize: Styling.fontSize(4)
                 color: Colors.overSurfaceVariant
             }
         }
@@ -175,7 +136,7 @@ Item {
         Layout.fillWidth: true
         spacing: 8
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: toggleRowRoot.label
@@ -185,7 +146,7 @@ Item {
             Layout.fillWidth: true
         }
 
-        Switch {
+        StyledSwitch {
             id: toggleSwitch
             checked: toggleRowRoot.checked
 
@@ -195,40 +156,50 @@ Item {
                 }
             }
 
-            indicator: Rectangle {
-                implicitWidth: 40
-                implicitHeight: 20
-                x: toggleSwitch.leftPadding
-                y: parent.height / 2 - height / 2
-                radius: height / 2
-                color: toggleSwitch.checked ? Styling.srItem("overprimary") : Colors.surfaceBright
-                border.color: toggleSwitch.checked ? Styling.srItem("overprimary") : Colors.outline
+        }
+    }
 
-                Behavior on color {
-                    enabled: Config.animDuration > 0
-                    ColorAnimation {
-                        duration: Config.animDuration / 2
-                    }
-                }
-
-                Rectangle {
-                    x: toggleSwitch.checked ? parent.width - width - 2 : 2
-                    y: 2
-                    width: parent.height - 4
-                    height: width
-                    radius: width / 2
-                    color: toggleSwitch.checked ? Colors.background : Colors.overSurfaceVariant
-
-                    Behavior on x {
-                        enabled: Config.animDuration > 0
-                        NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutCubic
-                        }
-                    }
+    component AppearanceSliderRow: ColumnLayout {
+        id: sliderRow
+        required property string label
+        required property int configValue
+        property int minimum: 0
+        signal valueEdited(int newValue)
+        Layout.fillWidth: true
+        spacing: 8
+        RowLayout {
+            Layout.fillWidth: true
+            StyledText {
+                text: sliderRow.label
+                Layout.fillWidth: true
+                color: Colors.overBackground
+            }
+            StyledText {
+                text: sliderRow.configValue + "%"
+                color: Colors.overSurfaceVariant
+            }
+        }
+        StyledSlider {
+            id: appearanceSlider
+            objectName: sliderRow.objectName + "-control"
+            Layout.fillWidth: true
+            Layout.preferredHeight: Styling.fontSize(0) * 1.5
+            property bool ready: false
+            readonly property real externalValue: (sliderRow.configValue - sliderRow.minimum) / (100 - sliderRow.minimum)
+            stepSize: 1 / (100 - sliderRow.minimum)
+            snapMode: "always"
+            progressColor: Styling.srItem("overprimary")
+            tooltipText: Math.round(sliderRow.minimum + value * (100 - sliderRow.minimum)) + "%"
+            onExternalValueChanged: {
+                if (Math.abs(value - externalValue) > 0.001) value = externalValue;
+            }
+            Component.onCompleted: { value = externalValue; ready = true; }
+            onValueChanged: {
+                if (ready) {
+                    const percent = Math.round(sliderRow.minimum + value * (100 - sliderRow.minimum));
+                    if (percent !== sliderRow.configValue) sliderRow.valueEdited(percent);
                 }
             }
-            background: null
         }
     }
 
@@ -245,7 +216,7 @@ Item {
         Layout.fillWidth: true
         spacing: 8
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: numberInputRowRoot.label
@@ -298,7 +269,7 @@ Item {
             }
         }
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: numberInputRowRoot.suffix
@@ -320,7 +291,7 @@ Item {
         Layout.fillWidth: true
         spacing: 8
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: textInputRowRoot.label
@@ -358,7 +329,7 @@ Item {
                 }
                 Component.onCompleted: text = configValue
 
-                Text {
+                StyledText {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
                     text: textInputRowRoot.placeholder
@@ -394,7 +365,7 @@ Item {
         Layout.fillWidth: true
         spacing: 4
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: selectorRowRoot.label
@@ -414,6 +385,7 @@ Item {
 
                 delegate: StyledRect {
                     id: optionButton
+                    objectName: selectorRowRoot.objectName + "-" + modelData.value
                     required property var modelData
                     required property int index
 
@@ -426,7 +398,7 @@ Item {
                     height: 36
                     radius: isSelected ? Styling.radius(0) / 2 : Styling.radius(0)
 
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         id: optionIcon
@@ -435,12 +407,12 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: optionButton.modelData.icon ?? ""
                         font.family: Icons.font
-                        font.pixelSize: 14
+                        font.pixelSize: Styling.fontSize(0)
                         color: optionButton.item
                         visible: (optionButton.modelData.icon ?? "") !== ""
                     }
 
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         anchors.centerIn: parent
@@ -476,7 +448,7 @@ Item {
         Layout.fillWidth: true
         spacing: 4
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: screenListRowRoot.label
@@ -486,7 +458,7 @@ Item {
             color: Colors.overSurfaceVariant
         }
 
-        Text {
+        StyledText {
             renderType: Text.NativeRendering
             font.hintingPreference: Font.PreferFullHinting
             text: "Empty = all screens"
@@ -520,7 +492,7 @@ Item {
                     height: 32
                     radius: Styling.radius(-2)
 
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         id: screenLabel
@@ -601,7 +573,8 @@ Item {
                     id: titlebar
                     width: root.contentWidth
                     anchors.horizontalCenter: parent.horizontalCenter
-                    title: root.currentSection === "" ? "Shell" : (root.currentSection.charAt(0).toUpperCase() + root.currentSection.slice(1))
+                    title: ({bar: "Bar", sidebar: "Assistant panel", lockscreen: "Lock screen", system: "About"})[root.currentSection] || "Shell"
+                    description: root.currentSection === "" ? "Bar, assistant panel and lock screen settings." : ""
 
                     actions: {
                         if (root.currentSection !== "") {
@@ -635,25 +608,34 @@ Item {
                     // ═══════════════════════════════════════════════════════════════
                     // MENU SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    GridLayout {
                         visible: root.currentSection === ""
                         Layout.fillWidth: true
-                        spacing: 8
-
+                        columns: root.contentWidth < Styling.fontSize(0) * 30 ? 1 : 2
+                        columnSpacing: 12
+                        rowSpacing: 12
                         SectionButton {
                             text: "Bar"
+                            description: "Layout, transparency and visible monitors."
+                            glyph: Icons.layout
                             sectionId: "bar"
                         }
                         SectionButton {
-                            text: "Sidebar"
+                            text: "Assistant panel"
+                            description: "Position, width and startup behavior."
+                            glyph: Icons.robot
                             sectionId: "sidebar"
                         }
                         SectionButton {
-                            text: "Lockscreen"
+                            text: "Lock screen"
+                            description: "Lock screen layout and controls."
+                            glyph: Icons.lock
                             sectionId: "lockscreen"
                         }
                         SectionButton {
-                            text: "System"
+                            text: "About"
+                            description: "Shell version and project information."
+                            glyph: Icons.gear
                             sectionId: "system"
                         }
                     }
@@ -661,12 +643,11 @@ Item {
                     // ═══════════════════════════════════════════════════════════════
                     // BAR SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "bar"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "Bar"
@@ -681,12 +662,12 @@ Item {
                             label: "Style"
                             options: [
                                 {
-                                    label: "Default",
+                                    label: "Continuous bar",
                                     value: "default",
                                     icon: Icons.layout
                                 },
                                 {
-                                    label: "Island",
+                                    label: "Islands",
                                     value: "island",
                                     icon: Icons.circle
                                 }
@@ -699,30 +680,17 @@ Item {
                             }
                         }
 
-                        SelectorRow {
-                            label: "Position"
-                            options: [
-                                {
-                                    label: "Top",
-                                    value: "top",
-                                    icon: Icons.arrowUp
-                                },
-                                {
-                                    label: "Bottom",
-                                    value: "bottom",
-                                    icon: Icons.arrowDown
-                                }
-                            ]
-                            value: Config.bar.position ?? "top"
-                            onValueSelected: newValue => {
-                                if (newValue !== Config.bar.position) {
-                                    Config.bar.position = newValue;
-                                }
-                            }
+                        StyledText {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: "The bar stays at the top. Windows use 12 px corners and 4 px gaps; shell corner styling is configured under Theme."
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-1)
+                            color: Colors.overSurfaceVariant
                         }
 
                         ToggleRow {
-                            label: "Use 12h Format"
+                            label: "12-hour clock"
                             checked: Config.bar.use12hFormat ?? false
                             onToggled: value => {
                                 if (value !== Config.bar.use12hFormat) {
@@ -732,7 +700,7 @@ Item {
                         }
 
                         ToggleRow {
-                            label: "Enable Firefox Player"
+                            label: "Firefox media controls"
                             checked: Config.bar.enableFirefoxPlayer ?? false
                             onToggled: value => {
                                 if (value !== Config.bar.enableFirefoxPlayer) {
@@ -743,12 +711,61 @@ Item {
 
                         ToggleRow {
                             visible: (Config.bar?.style ?? "default") === "island"
-                            label: "Pin Dynamic Island"
+                            label: "Keep bar visible"
                             checked: Config.bar.pinned ?? false
                             onToggled: value => {
                                 if (value !== Config.bar.pinned) {
                                     Config.bar.pinned = value;
                                 }
+                            }
+                        }
+
+                        ColumnLayout {
+                            visible: (Config.bar?.style ?? "default") === "island"
+                            Layout.fillWidth: true
+                            spacing: 12
+
+                            SelectorRow {
+                                objectName: "bar-appearance"
+                                label: "Appearance"
+                                options: [
+                                    { label: "Transparent", value: "glass", icon: Icons.drop },
+                                    { label: "Standard", value: "classic", icon: Icons.circle }
+                                ]
+                                value: Config.bar?.islandAppearance ?? "glass"
+                                onValueSelected: newValue => Config.bar.islandAppearance = newValue
+                            }
+
+                            BarAppearancePreview { Layout.fillWidth: true }
+
+                            AppearanceSliderRow {
+                                visible: BarAppearance.polished
+                                objectName: "bar-opacity"
+                                label: "Background opacity"
+                                minimum: 20
+                                configValue: Config.bar?.islandOpacity ?? 80
+                                onValueEdited: newValue => Config.bar.islandOpacity = newValue
+                            }
+                            AppearanceSliderRow {
+                                visible: BarAppearance.polished
+                                objectName: "bar-accent"
+                                label: "Wallpaper accent"
+                                configValue: Config.bar?.islandAccent ?? 55
+                                onValueEdited: newValue => Config.bar.islandAccent = newValue
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Changes save automatically. Colors follow your theme. Standard keeps the saved transparency settings."
+                                font.pixelSize: Styling.fontSize(-1)
+                                color: Colors.overSurfaceVariant
+                            }
+                            ActionButton {
+                                objectName: "bar-appearance-reset"
+                                text: "Reset bar appearance"
+                                icon: Icons.arrowCounterClockwise
+                                trailingIcon: ""
+                                onClicked: BarAppearance.reset()
                             }
                         }
 
@@ -770,12 +787,11 @@ Item {
                     // WORKSPACES SECTION
                     // LOCKSCREEN SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "lockscreen"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "Lockscreen"
@@ -811,12 +827,11 @@ Item {
 
                     // SYSTEM SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "system"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "System"
@@ -828,13 +843,13 @@ Item {
                         }
 
                         ActionButton {
-                            text: "About Nonchalant " + Config.version
+                            text: "About rebos_shell " + Config.version
                             icon: Icons.info
-                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/jR4dh3y/nonchalant-shell"])
+                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/Dytox2/rebos_enclosure"])
                         }
 
                         ActionButton {
-                            text: "Sponsor ❤️"
+                            text: "Support development"
                             icon: Icons.heart
                             onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/sponsors/jR4dh3y"])
                         }
@@ -844,12 +859,11 @@ Item {
                     // ═══════════════════════════════════════════════════════════════
                     // SIDEBAR SECTION
                     // ═══════════════════════════════════════════════════════════════
-                    ColumnLayout {
+                    SettingsGroup {
                         visible: root.currentSection === "sidebar"
                         Layout.fillWidth: true
-                        spacing: 8
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: "Sidebar"
@@ -861,7 +875,7 @@ Item {
                         }
 
                         ToggleRow {
-                            label: "Enable Sidebar"
+                            label: "Show assistant panel"
                             checked: Config.ai.sidebarEnabled ?? true
                             onToggled: value => {
                                 if (value !== Config.ai.sidebarEnabled) {
@@ -910,7 +924,7 @@ Item {
                         }
 
                         ToggleRow {
-                            label: "Pinned on Startup"
+                            label: "Open as a tiled window"
                             enabled: Config.ai.sidebarEnabled ?? true
                             opacity: enabled ? 1 : 0.5
                             checked: Config.ai.sidebarPinnedOnStartup ?? false

@@ -4,26 +4,14 @@ var data = {
 
     "enabled": true,
     "sidebarEnabled": true,
-    "defaultAgent": "opencode",
+    "defaultAgent": "codex",
     "workingDirectory": "",
     "agents": [
-        {
-            "id": "opencode",
-            "name": "OpenCode",
-            "command": ["opencode", "acp", "--print-logs", "--log-level", "ERROR"],
-            "authMethod": "opencode-login"
-        },
-        {
-            "id": "grok",
-            "name": "Grok Build",
-            "command": ["grok", "agent", "stdio"],
-            "authMethod": "cached_token"
-        },
         {
             "id": "codex",
             "name": "Codex",
             "command": ["sh", "-lc", "CODEX_PATH=\"$(command -v codex)\" exec npx -y @agentclientprotocol/codex-acp"],
-            "authMethod": "chatgpt"
+            "authMethod": "chat-gpt"
         }
     ],
     "sidebarWidth": 400,

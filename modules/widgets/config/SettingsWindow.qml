@@ -11,9 +11,9 @@ FloatingWindow {
     id: settingsWindow
 
     // Window properties
-    implicitWidth: 900
-    implicitHeight: 650
-    title: "Nonchalant Settings"
+    implicitWidth: 1100
+    implicitHeight: 760
+    title: "rebos_shell Settings"
     visible: GlobalStates.settingsWindowVisible
 
     // Center on screen (approximate, since FloatingWindow usually centers by default or relies on WM)

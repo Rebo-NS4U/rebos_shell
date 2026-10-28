@@ -1,6 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
-# Weather fetching script for Nonchalant
+for dependency in curl jq; do
+    command -v "$dependency" >/dev/null 2>&1 || { echo "{\"error\": \"Missing dependency: $dependency\"}"; exit 1; }
+done
+
+# Weather fetching script for rebos_shell
 # Usage: weather.sh [location]
 # If no location is provided, uses GeoIP to determine location
 # Output: JSON with weather data or error
@@ -19,7 +24,7 @@ http_get() {
 	while [[ $attempt -le $max_attempts ]]; do
 		# -f rejects HTTP errors such as the 429 response that ipapi.co
 		# previously passed to jq as if it were valid JSON.
-		response=$(curl -fsS --max-time 15 --retry 1 --retry-delay 1 "$url" 2>/dev/null)
+		response=$(curl -fsS --max-time 15 --retry 1 --retry-delay 1 "$url" 2>/dev/null) || response=""
 		if [[ -n "$response" && "$response" != "null" ]]; then
 			echo "$response"
 			return 0
@@ -77,7 +82,7 @@ geocode_city() {
 	encoded_city=$(echo -n "$city" | jq -sRr @uri)
 
 	local response
-	response=$(http_get "https://geocoding-api.open-meteo.com/v1/search?name=${encoded_city}")
+	response=$(http_get "https://geocoding-api.open-meteo.com/v1/search?name=${encoded_city}") || response=""
 
 	if [[ -z "$response" ]]; then
 		echo '{"error": "Geocoding request failed"}'
@@ -101,10 +106,10 @@ fetch_weather() {
 	local lat="$1"
 	local lon="$2"
 
-	local url="https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weathercode&timezone=auto&forecast_days=7"
+	local url="https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,apparent_temperature,relative_humidity_2m,wind_gusts_10m,wind_direction_10m&hourly=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weathercode,uv_index_max,precipitation_probability_max&timezone=auto&forecast_days=7"
 
 	local response
-	response=$(http_get "$url")
+	response=$(http_get "$url") || response=""
 
 	if [[ -z "$response" ]]; then
 		echo '{"error": "Weather API request failed"}'
@@ -113,7 +118,7 @@ fetch_weather() {
 
 	# Validate response has required fields
 	local has_current has_daily
-	has_current=$(echo "$response" | jq -r '.current_weather // empty')
+	has_current=$(echo "$response" | jq -r '.current // empty')
 	has_daily=$(echo "$response" | jq -r '.daily // empty')
 
 	if [[ -z "$has_current" || -z "$has_daily" ]]; then
@@ -130,7 +135,7 @@ main() {
 
 	if [[ -z "$LOCATION" ]]; then
 		# No location provided, use GeoIP
-		coords=$(get_geoip_coords)
+		coords=$(get_geoip_coords) || { echo "$coords"; return 1; }
 		if [[ "$coords" == "{"* ]]; then
 			# It's an error JSON
 			echo "$coords"
@@ -141,7 +146,7 @@ main() {
 		coords="$LOCATION"
 	else
 		# Location is a city name, geocode it
-		coords=$(geocode_city "$LOCATION")
+		coords=$(geocode_city "$LOCATION") || { echo "$coords"; return 1; }
 		if [[ "$coords" == "{"* ]]; then
 			# It's an error JSON
 			echo "$coords"

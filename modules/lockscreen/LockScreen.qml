@@ -10,6 +10,7 @@ import qs.modules.components
 import qs.modules.theme
 import qs.modules.globals
 import qs.modules.services
+import qs.modules.shell.osd
 import qs.modules.widgets.dashboard.widgets
 import qs.config
 
@@ -32,6 +33,14 @@ WlSessionLockSurface {
     // An opaque surface is important here. Transparent session-lock surfaces
     // can briefly show an undefined compositor buffer while they map.
     color: Colors.background
+
+    LockKeyToast {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: (Styling.fontSize(0) * 10)
+        z: 100
+        shown: KeyboardLocks.toastVisible
+    }
 
     function beginEntry() {
         if (entryStarted || !lockSecure || unlocking)

@@ -56,7 +56,7 @@ Item {
         return GlobalStates.wallpaperManager.currentWallpaper || "";
     }
 
-    readonly property var filteredWallpapers: {
+    readonly property list<string> searchedWallpapers: {
         if (!GlobalStates.wallpaperManager)
             return [];
         let wallpapers = GlobalStates.wallpaperManager.wallpaperPaths || [];
@@ -69,6 +69,8 @@ Item {
         }
         return wallpapers;
     }
+
+    readonly property list<string> filteredWallpapers: wallpaperColorControls.arrangedPaths
 
     ColumnLayout {
         anchors.fill: parent
@@ -344,6 +346,13 @@ Item {
             }
         }
 
+        WallpaperColorControls {
+            id: wallpaperColorControls
+            Layout.fillWidth: true
+            directory: GlobalStates.wallpaperManager?.wallpaperDir ?? ""
+            paths: root.searchedWallpapers
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // WALLPAPERS GRID (Balanced 4-column edge-to-edge grid)
         // ═══════════════════════════════════════════════════════════════
@@ -420,7 +429,7 @@ Item {
 
                         scale: delegateItem.isHovered ? 0.96 : 1.0
                         Behavior on scale {
-                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                            NumberAnimation { duration: Motion.feedback; easing.type: Easing.OutCubic }
                         }
 
                         // Thumbnail image

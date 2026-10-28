@@ -1,14 +1,16 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Wayland._BackgroundEffect
 import qs.modules.bar
 import qs.modules.services
 import qs.modules.globals
 import qs.modules.components
 import qs.modules.widgets.launcher
+import qs.modules.widgets.fileshelf
+import qs.modules.widgets.notes
 import qs.modules.widgets.powermenu
 import qs.modules.notifications
-import qs.modules.sidebar
 import qs.config
 
 PanelWindow {
@@ -27,27 +29,25 @@ PanelWindow {
     color: "transparent"
 
     WlrLayershell.keyboardFocus: {
-        if (runMenu.open || barContent.islandActive)
+        if (notesPopup.open || runMenu.open)
+            return WlrKeyboardFocus.Exclusive;
+        if (SystemResources.keepMonitorOpen)
+            return WlrKeyboardFocus.OnDemand;
+        if (barContent.islandActive)
             return WlrKeyboardFocus.Exclusive;
         // Bar popups are child surfaces of this panel. The parent layer must
         // request keyboard focus or input continues to the client underneath.
         if (barContent.timerInputActive || barContent.dashboardInputActive)
             return WlrKeyboardFocus.Exclusive;
-        // Request compositor ownership before focusing the assistant input.
-        // Requiring activeFocus here is circular: the field cannot gain focus
-        // while keyboard events still belong to the client underneath.
-        if (assistantSidebar && assistantSidebar.active
-                && assistantSidebar.wantsFocus)
-            return WlrKeyboardFocus.Exclusive;
+        if (fileShelf.open) return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
     }
-    WlrLayershell.namespace: "nonchalant"
+    WlrLayershell.namespace: "rebos_shell"
     WlrLayershell.layer: WlrLayer.Overlay
     exclusionMode: ExclusionMode.Ignore
 
-    // Assistant stays open without eating the whole screen — only its hitbox
-    // receives clicks (see mask regions). Run menu / grabs still go full-screen.
-    readonly property bool needsFullScreenInput: runMenu.open || barContent.dashboardInputActive || barContent.islandActive || FocusGrabManager.hasActiveGrab
+    // Menus temporarily receive outside clicks so they can be dismissed.
+    readonly property bool needsFullScreenInput: notesPopup.open || runMenu.open || ((!SystemResources.keepMonitorOpen) && (barContent.dashboardInputActive || barContent.islandActive)) || FocusGrabManager.hasActiveGrab
 
     readonly property bool barEnabled: {
         if (!Config.barReady) return false;
@@ -59,7 +59,6 @@ PanelWindow {
     readonly property alias barOuterMargin: barContent.baseOuterMargin
     readonly property alias totalBarHeight: barContent.totalBarHeight
     readonly property string barPosition: Config.bar?.position ?? "top"
-    readonly property Item assistantSidebar: assistantSidebarLoader.item
 
 
     Component.onCompleted: {
@@ -69,6 +68,23 @@ PanelWindow {
     Component.onDestruction: {
         Visibilities.unregisterBarPanel(screen.name);
     }
+
+    // Only the painted panels request blur; outside-click input stays separate.
+    // Strength is shared with application windows through Niri's global blur.
+    BackgroundEffect.blurRegion: Region {
+        regions: [
+            barContent.backgroundBlur,
+            launcherBlur,
+            notesBlur,
+            shelfBlur,
+            toastStack.backgroundBlur
+        ]
+    }
+
+
+    BlurRegion { id: launcherBlur; target: runMenu.blurTarget }
+    BlurRegion { id: notesBlur; target: notesPopup.blurTarget }
+    BlurRegion { id: shelfBlur; target: fileShelf.blurTarget }
 
     // Full-screen mask item (used when modules/popups are open)
     Item {
@@ -83,6 +99,8 @@ PanelWindow {
         // Full-screen capture when any module/popup is open
         item: unifiedPanel.needsFullScreenInput ? fullScreenMask : null
         regions: [
+            Region { item: fileShelf.handleHitbox },
+            Region { item: fileShelf.shelfHitbox },
             Region {
                 item: barContent.visible ? barContent.barHitbox : null
             },
@@ -94,11 +112,6 @@ PanelWindow {
             },
             Region {
                 item: toastStack.hitbox
-            },
-            Region {
-                item: assistantSidebar
-                    && (assistantSidebar.active || assistantSidebar.hitbox.visible)
-                    ? assistantSidebar.hitbox : null
             }
         ]
     }
@@ -107,40 +120,41 @@ PanelWindow {
     FocusGrab {
         id: focusGrab
         windows: [unifiedPanel]
-        active: runMenu.open
+        active: runMenu.open || notesPopup.open
 
         onCleared: {
+            if (notesPopup.open)
+                QuickNotes.close();
             Visibilities.setActiveModule("");
         }
-    }
-
-    MouseArea {
-        id: backdropArea
-        anchors.fill: parent
-        visible: unifiedPanel.needsFullScreenInput
-        z: -1
-
-        onClicked: {
-            FocusGrabManager.clearTopGrab();
-            if (runMenu.open)
-                Visibilities.setActiveModule("");
-            if (barContent.dashboardInputActive)
-                Visibilities.closeActiveBarPopup();
-            if (barContent.islandActive)
-                barContent.collapseIsland();
-            if (assistantSidebar && assistantSidebar.active && assistantSidebar.wantsFocus) {
-                assistantSidebar.wantsFocus = false;
-                // Defocus the text field so keyboard returns to the session.
-                if (assistantSidebar.hasActiveFocus)
-                    unifiedPanel.forceActiveFocus();
-            }
-        }
-
     }
 
     Item {
         id: visualContent
         anchors.fill: parent
+
+        MouseArea {
+            id: backdropArea
+            anchors.fill: parent
+            visible: unifiedPanel.needsFullScreenInput
+            // Outside clicks dismiss the open surface.
+            z: 50
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+
+            onClicked: {
+                if (notesPopup.open)
+                    QuickNotes.close();
+                FocusGrabManager.clearTopGrab();
+                if (runMenu.open)
+                    Visibilities.setActiveModule("");
+                if (barContent.dashboardInputActive)
+                    Visibilities.closeActiveBarPopup();
+                if (barContent.islandActive)
+                    barContent.collapseIsland();
+
+            }
+
+        }
 
         BarContent {
             id: barContent
@@ -172,26 +186,19 @@ PanelWindow {
             z: 200
         }
 
-        Loader {
-            id: assistantSidebarLoader
+        FileShelfPanel {
+            id: fileShelf
             anchors.fill: parent
-            active: GlobalStates.assistantAvailable
-            z: 1
-
-            sourceComponent: Component {
-                AssistantSidebar {
-                    targetScreen: unifiedPanel.targetScreen
-
-                    anchors.topMargin: unifiedPanel.barEnabled
-                        && unifiedPanel.barPosition === "top"
-                        ? unifiedPanel.barTargetHeight + unifiedPanel.barOuterMargin
-                        : 0
-                    anchors.bottomMargin: unifiedPanel.barEnabled
-                        && unifiedPanel.barPosition === "bottom"
-                        ? unifiedPanel.barTargetHeight + unifiedPanel.barOuterMargin
-                        : 0
-                }
-            }
+            screen: unifiedPanel.targetScreen
+            z: 250
         }
+
+        NotesPopup {
+            id: notesPopup
+            anchors.fill: parent
+            screen: unifiedPanel.targetScreen
+            z: 400
+        }
+
     }
 }

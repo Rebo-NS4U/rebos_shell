@@ -8,6 +8,7 @@ import qs.modules.components
 
 ToolTip {
     id: root
+    objectName: "styled-tooltip"
     property string tooltipText: ""
     property string description: ""
     property alias desciription: root.description
@@ -19,6 +20,7 @@ ToolTip {
     visible: show && tooltipText.length > 0
 
     background: StyledRect {
+        objectName: "styled-tooltip-background"
         variant: "popup"
         radius: Styling.radius(-8)
     }

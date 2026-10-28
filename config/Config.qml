@@ -25,8 +25,8 @@ Singleton {
         onLoaded: root.version = text().trim()
     }
 
-    property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/nonchalant/config"
-    property string presetDir: Qt.resolvedUrl("../assets/presets/Nonchalant Default").toString().replace("file://", "")
+    property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/rebos_shell/config"
+    property string presetDir: Qt.resolvedUrl("../assets/presets/rebos_shell Default").toString().replace("file://", "")
     property bool configDirReady: false
 
     // Module init status
@@ -68,10 +68,17 @@ Singleton {
     // ============================================
     // THEME MODULE
     // ============================================
+    Timer {
+        id: themeSaveTimer
+        interval: 100
+        onTriggered: themeLoader.writeAdapter()
+    }
+
     FileView {
         id: themeLoader
         path: root.configDirReady ? root.configDir + "/theme.json" : ""
         atomicWrites: true
+        blockWrites: true
         watchChanges: true
         onLoaded: {
             if (!root.themeReady) {
@@ -87,14 +94,22 @@ Singleton {
                 });
             }
         }
-        onFileChanged: reload()
+        onFileChanged: {
+            if (!themeSaveTimer.running) reload();
+        }
         onAdapterUpdated: {
             if (root.themeReady) {
-                themeLoader.writeAdapter();
+                themeSaveTimer.restart();
             }
         }
 
         adapter: JsonAdapter {
+            property string shellStyle: "glass"
+            property string ditherPalette: "original"
+            property string ditherTintColor: "#4c9cbd"
+            property string ditherBorder: "band"
+            property string wallpaperDitherStrength: "strong"
+            property int ditherStrength: 20
             property bool oledMode: false
             property bool lightMode: false
             property int roundness: 16
@@ -166,7 +181,7 @@ Singleton {
 
             property JsonObject srBarBg: JsonObject {
                 property string label: "Bar BG"
-                property list<var> gradient: [["surfaceDim", 0.0]]
+                property list<var> gradient: [["background", 0.0]]
                 property string gradientType: "linear"
                 property int gradientAngle: 0
                 property real gradientCenterX: 0.5
@@ -176,7 +191,7 @@ Singleton {
                 property real halftoneStart: 0.0
                 property real halftoneEnd: 1.0
                 property string halftoneDotColor: "surface"
-                property string halftoneBackgroundColor: "surfaceDim"
+                property string halftoneBackgroundColor: "background"
                 property list<var> border: ["surfaceBright", 0]
                 property string itemColor: "overBackground"
                 property real opacity: 0.0
@@ -456,11 +471,20 @@ Singleton {
 
     // ============================================
     // BAR MODULE
+    // Coalesce slider/reset updates before writing so earlier snapshots cannot
+    // reload over newer edits. Small local config writes finish before watching resumes.
+    Timer {
+        id: barSaveTimer
+        interval: 100
+        onTriggered: barLoader.writeAdapter()
+    }
+
     // ============================================
     FileView {
         id: barLoader
         path: root.configDirReady ? root.configDir + "/bar.json" : ""
         atomicWrites: true
+        blockWrites: true
         watchChanges: true
         onLoaded: {
             if (!root.barReady) {
@@ -476,10 +500,12 @@ Singleton {
                 });
             }
         }
-        onFileChanged: reload()
+        onFileChanged: {
+            if (!barSaveTimer.running) reload();
+        }
         onAdapterUpdated: {
             if (root.barReady) {
-                barLoader.writeAdapter();
+                barSaveTimer.restart();
             }
         }
 
@@ -490,6 +516,9 @@ Singleton {
             property bool enableFirefoxPlayer: false
             property bool use12hFormat: false
             property bool pinned: false
+            property string islandAppearance: "glass"
+            property int islandOpacity: 80
+            property int islandAccent: 55
         }
     }
 
@@ -523,6 +552,7 @@ Singleton {
         }
 
         adapter: JsonAdapter {
+            property string desktopBlur: "medium"
             property bool blurTransition: true
             property bool windowPreview: true
             property bool wavyLine: true
@@ -656,14 +686,14 @@ Singleton {
         onLoaded: {
             if (!root.aiReady) {
                 validateModule("ai", aiLoader, AiDefaults.data, () => {
-                    root.aiReady = true;
+                    root.finishAiLoad();
                 });
             }
         }
         onLoadFailed: function(error) {
             if (!root.aiReady) {
                 handleMissingConfig("ai", aiLoader, AiDefaults.data, () => {
-                    root.aiReady = true;
+                    root.finishAiLoad();
                 });
             }
         }
@@ -677,26 +707,14 @@ Singleton {
         adapter: JsonAdapter {
             property bool enabled: true
             property bool sidebarEnabled: true
-            property string defaultAgent: "opencode"
+            property string defaultAgent: "codex"
             property string workingDirectory: ""
             property list<var> agents: [
-                {
-                    "id": "opencode",
-                    "name": "OpenCode",
-                    "command": ["opencode", "acp", "--print-logs", "--log-level", "ERROR"],
-                    "authMethod": "opencode-login"
-                },
-                {
-                    "id": "grok",
-                    "name": "Grok Build",
-                    "command": ["grok", "agent", "stdio"],
-                    "authMethod": "cached_token"
-                },
                 {
                     "id": "codex",
                     "name": "Codex",
                     "command": ["sh", "-lc", "CODEX_PATH=\"$(command -v codex)\" exec npx -y @agentclientprotocol/codex-acp"],
-                    "authMethod": "chatgpt"
+                    "authMethod": "chat-gpt"
                 }
             ]
             property int sidebarWidth: 400
@@ -705,6 +723,22 @@ Singleton {
         }
     }
 
+
+    // Persist the Codex-only configuration through the reactive adapter.
+    function finishAiLoad() {
+        root.aiReady = true;
+        Qt.callLater(() => {
+            let codex = AiDefaults.data.agents[0];
+            for (let agent of aiLoader.adapter.agents) {
+                if (agent && agent.id === "codex") {
+                    codex = agent;
+                    break;
+                }
+            }
+            aiLoader.adapter.defaultAgent = "codex";
+            aiLoader.adapter.agents = [Object.assign({}, codex, {authMethod: "chat-gpt"})];
+        });
+    }
 
     // Validation helper
     function validateModule(name, loader, defaults, onComplete) {
@@ -762,7 +796,10 @@ Singleton {
             var wallpaperManager = GlobalStates.wallpaperManager;
             if (wallpaperManager.currentWallpaper) {
                 console.log("Re-running Matugen due to lightMode change");
-                wallpaperManager.runMatugenForCurrentWallpaper();
+                if (wallpaperManager.activeColorPreset)
+                    wallpaperManager.applyColorPreset();
+                else
+                    wallpaperManager.runMatugenForCurrentWallpaper();
             }
         }
     }
