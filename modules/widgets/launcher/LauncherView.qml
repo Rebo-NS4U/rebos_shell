@@ -942,43 +942,15 @@ Item {
 
                 highlight: Item {
                     width: resultsList.width
-                    height: {
-                        let baseHeight = 48;
-                        if (resultsList.currentIndex === appLauncher.expandedItemIndex) {
-                            var listHeight = 36 * 2;
-                            return baseHeight + 4 + listHeight + 8;
-                        }
-                        return baseHeight;
-                    }
-
-                    // Calculate Y position based on index, accounting for expanded items
-                    y: {
-                        var yPos = 0;
-                        for (var i = 0; i < resultsList.currentIndex && i < appsModel.count; i++) {
-                            var itemHeight = 48;
-                            if (i === appLauncher.expandedItemIndex) {
-                                var listHeight = 36 * 2;
-                                itemHeight = 48 + 4 + listHeight + 8;
-                            }
-                            yPos += itemHeight;
-                        }
-                        return yPos;
-                    }
-
+                    height: resultsList.currentItem?.height ?? 0
+                    // Model changes can shift the list origin; follow the actual row.
+                    y: resultsList.currentItem?.y ?? 0
 
                     Behavior on y {
                         enabled: Config.animDuration > 0
                         NumberAnimation {
                             duration: Config.animDuration / 2
                             easing.type: Easing.OutCubic
-                        }
-                    }
-
-                    Behavior on height {
-                        enabled: Config.animDuration > 0
-                        NumberAnimation {
-                            duration: Config.animDuration
-                            easing.type: Easing.OutQuart
                         }
                     }
 
