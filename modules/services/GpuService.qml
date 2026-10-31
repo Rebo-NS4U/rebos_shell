@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.modules.globals
 
 Singleton {
     id: root
@@ -183,7 +184,8 @@ Singleton {
     Timer {
         interval: 5000
         repeat: true
-        running: true
+        running: (GlobalStates.dashboardOpen || GlobalStates.settingsWindowVisible) && !SuspendManager.isSuspending
+        triggeredOnStart: true
         onTriggered: root.refresh()
     }
 

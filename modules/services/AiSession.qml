@@ -170,6 +170,8 @@ Scope {
     property int activePromptRequestId: -1
     property var pendingSessionAction: null
     property var queuedPrompt: null
+    // Delivery belongs to the backend conversation, not the UI connection.
+    property string instructionSessionId: ""
     property string agentStderrTail: ""
     property bool turnFailureHandled: false
 
@@ -280,6 +282,7 @@ Scope {
         "initialized", "authenticated", "sessionReady", "suppressReplay",
         "agentCapabilities", "authMethods", "pendingRpc", "nextRpcId",
         "activePromptRequestId", "pendingSessionAction", "queuedPrompt", "agentStderrTail",
+        "instructionSessionId",
         "turnFailureHandled", "sessionConfigOptions", "sessionModels", "currentSessionModelId",
         "pendingSessionModelId", "modelSwitchError", "availableCommands", "currentModeId",
         "contextUsed", "contextSize", "sessionCost", "sessionCostCurrency",
@@ -1783,8 +1786,11 @@ Scope {
                 text: queued.text
             });
 
-        prompt.push({type: "text", text: "Shell activity preference: Begin with one concise, descriptive sentence stating the overall task you are working on. For multi-step work, keep the plan in plain English with specific steps describing the intended result. Give concise public progress updates explaining what you found, what you are doing next, and why it helps the request. Use everyday English in visible activity rows: describe the feature, action and purpose rather than filenames, command names or technical jargon. For example, say Check that activity rows explain the work clearly. Put filenames and technical identifiers in expandable details. Use specific descriptive tool titles where supported, avoiding vague labels such as Running a command or Reading files. Keep code, patches, commands and relevant output in expandable details; the visible activity should explain the purpose and progress of the work."});
-        prompt.push({type: "text", text: "Shell assistant interaction preference: Use the assistant_questions ask_user_question tool to ask a focused, answerable question early when a meaningful preference, scope choice, or missing detail could change the result. Offer 2–3 clear choices when useful, with the recommendation first. Ask more actively instead of silently choosing subjective details. Wait for the answer before dependent changes. Continue routine authorized work without extra permission questions. Do not repeat answered questions or ask unnecessary questions for clear, simple tasks. If the tool is unavailable, ask a concise question in chat."});
+        let sendSharedInstructions = instructionSessionId !== currentSessionId;
+        if (sendSharedInstructions) {
+            prompt.push({type: "text", text: "Shell activity preference: Begin with one concise, descriptive sentence stating the overall task you are working on. For multi-step work, keep the plan in plain English with specific steps describing the intended result. Give concise public progress updates explaining what you found, what you are doing next, and why it helps the request. Use everyday English in visible activity rows: describe the feature, action and purpose rather than filenames, command names or technical jargon. For example, say Check that activity rows explain the work clearly. Put filenames and technical identifiers in expandable details. Use specific descriptive tool titles where supported, avoiding vague labels such as Running a command or Reading files. Keep code, patches, commands and relevant output in expandable details; the visible activity should explain the purpose and progress of the work."});
+            prompt.push({type: "text", text: "Shell assistant interaction preference: Use the assistant_questions ask_user_question tool to ask a focused, answerable question early when a meaningful preference, scope choice, or missing detail could change the result. Offer 2–3 clear choices when useful, with the recommendation first. Ask more actively instead of silently choosing subjective details. Wait for the answer before dependent changes. Continue routine authorized work without extra permission questions. Do not repeat answered questions or ask unnecessary questions for clear, simple tasks. If the tool is unavailable, ask a concise question in chat."});
+        }
 
         let supportsImages = agentCapabilities && agentCapabilities.promptCapabilities
             && agentCapabilities.promptCapabilities.image === true;
@@ -1807,6 +1813,13 @@ Scope {
             sessionId: currentSessionId,
             prompt: prompt
         }, "prompt");
+        if (activePromptRequestId < 0) {
+            failActiveTurn("Connection lost before the message could be sent. Try again after reconnecting.");
+            return;
+        }
+        instructionSessionId = currentSessionId;
+        saveCurrentChat();
+        bridgeDirty = true;
         turnWatchdog.restart();
         statusText = "Thinking…";
     }
@@ -1865,6 +1878,7 @@ Scope {
 
     function createNewChat() {
         cancelGeneration(false);
+        instructionSessionId = "";
         currentChat = [];
         taskPlan = [];
         taskPlanMarkdown = "";
@@ -1914,6 +1928,7 @@ Scope {
             protocol: "acp",
             agentId: currentChatAgentId || currentAgentId,
             sessionId: currentSessionId,
+            instructionSessionId: instructionSessionId,
             cwd: currentChatCwd || workingDirectory(),
             taskPlan: taskPlan,
             taskPlanMarkdown: taskPlanMarkdown,
@@ -2047,6 +2062,7 @@ for path in files:
                 root.currentChat = isLegacy ? payload : (payload.messages || []);
                 root.currentChatId = targetId;
                 root.currentSessionId = isLegacy ? "" : (payload.sessionId || "");
+                root.instructionSessionId = isLegacy ? "" : (payload.instructionSessionId || "");
                 root.currentChatCwd = isLegacy ? root.workingDirectory() : (payload.cwd || root.workingDirectory());
                 root.sessionReady = false;
                 root.activeAssistantIndex = -1;

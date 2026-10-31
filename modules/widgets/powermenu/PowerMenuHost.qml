@@ -153,17 +153,14 @@ Item {
                     popupMode: true
                     expanded: root.menuOpen
                     onCloseRequested: root.closeMenu()
+                    Keys.onEscapePressed: event => {
+                        root.closeMenu();
+                        event.accepted = true;
+                    }
                 }
             }
         }
 
-        // Escape via Keys on the window content
-        Keys.onPressed: event => {
-            if (event.key === Qt.Key_Escape) {
-                root.closeMenu();
-                event.accepted = true;
-            }
-        }
     }
 
     Component.onCompleted: {

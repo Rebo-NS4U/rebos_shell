@@ -50,7 +50,7 @@ Item {
     }
 
     Timer {
-        running: MprisController.isPlaying && !root.isDragging
+        running: root.visible && MprisController.isPlaying && !root.isDragging
         interval: 1000
         repeat: true
         onTriggered: {

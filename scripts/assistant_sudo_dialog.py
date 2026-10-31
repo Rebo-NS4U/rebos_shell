@@ -189,4 +189,9 @@ if __name__ == "__main__":
     parser.add_argument("--reason", default="")
     parser.add_argument("--command", default="")
     parser.add_argument("--directory", default="")
-    sys.exit(Prompt(parser.parse_args()).run())
+    args = parser.parse_args()
+    Gtk.init_check()
+    if Gdk.Display.get_default() is None:
+        sys.stderr.write("Cannot connect to the desktop display.\n")
+        sys.exit(2)
+    sys.exit(Prompt(args).run())

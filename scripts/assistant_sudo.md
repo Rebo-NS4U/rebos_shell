@@ -15,6 +15,13 @@ Installation: make both scripts executable and link `assistant_sudo.py` as
 `~/.local/bin/assistant-sudo`. Keep `assistant_sudo_dialog.py` beside the scripts.
 Requires sudo, Python with GTK4/PyGObject and Cairo, and an accessible desktop session.
 
+The helper refreshes display settings from the current user's systemd environment,
+so assistant services do not need to inherit desktop variables when they start.
+This does not grant access through a sandbox. If desktop access is blocked, request
+the execution tool's supported approval for that exact helper invocation. If that
+approval is unavailable or rejected, provide the exact command for the user to run
+in a desktop terminal. Never retry a rejected action through another transport.
+
 Both dialogs read the shell palette and theme settings, following wallpaper colors,
 OLED backgrounds, font, roundness and the shared logical-pixel dither grid. Open
 dialogs refresh their appearance when the theme changes. The approval dialog starts

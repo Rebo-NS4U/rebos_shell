@@ -15,13 +15,12 @@ Item {
     id: root
     objectName: "islandDashboard"
 
-    property date currentDate: new Date()
+    property date currentDate: dashboardClock.date
 
-    Timer {
-        interval: 1000
-        running: root.visible
-        repeat: true
-        onTriggered: root.currentDate = new Date()
+    SystemClock {
+        id: dashboardClock
+        precision: SystemClock.Minutes
+        enabled: root.visible
     }
 
     implicitWidth: 420
@@ -73,7 +72,6 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
-            root.currentDate = new Date();
             NetworkService.update();
             BluetoothService.updateStatus();
         }

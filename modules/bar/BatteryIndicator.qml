@@ -63,11 +63,11 @@ Item {
             anchors.fill: parent
             color: Styling.srItem("overprimary")
             opacity: root.popupOpen ? 0 : (root.isHovered ? (root.flat ? 0.12 : 0.25) : 0)
-            radius: root.flat ? (width / 2) : parent.topLeftRadius
-            topLeftRadius: root.flat ? (width / 2) : parent.topLeftRadius
-            topRightRadius: root.flat ? (width / 2) : parent.topRightRadius
-            bottomLeftRadius: root.flat ? (width / 2) : parent.bottomLeftRadius
-            bottomRightRadius: root.flat ? (width / 2) : parent.bottomRightRadius
+            radius: root.flat ? (width / 2) : buttonBg.topLeftRadius
+            topLeftRadius: root.flat ? (width / 2) : buttonBg.topLeftRadius
+            topRightRadius: root.flat ? (width / 2) : buttonBg.topRightRadius
+            bottomLeftRadius: root.flat ? (width / 2) : buttonBg.bottomLeftRadius
+            bottomRightRadius: root.flat ? (width / 2) : buttonBg.bottomRightRadius
 
             Behavior on opacity {
                 enabled: Config.animDuration > 0

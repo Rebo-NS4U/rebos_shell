@@ -193,20 +193,14 @@ Item {
         }
     }
 
-    property string formattedTime: ""
-
-    Timer {
-        id: clockTimer
-        interval: 1000
-        running: !SuspendManager.isSuspending
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            const now = new Date();
-            const format = Config.bar?.use12hFormat ? "hh:mm ap" : "HH:mm";
-            root.formattedTime = Qt.formatTime(now, format);
-        }
+    // Minute precision avoids waking the shell every second for an hh:mm label.
+    SystemClock {
+        id: barClock
+        precision: SystemClock.Minutes
+        enabled: !SuspendManager.isSuspending
     }
+    readonly property string formattedTime: Qt.formatTime(barClock.date,
+        Config.bar?.use12hFormat ? "hh:mm ap" : "HH:mm")
 
     readonly property string batteryIcon: {
         let _ = Battery.percentage;
@@ -394,8 +388,8 @@ Item {
         if (currentMode === "apps" || currentMode === "projects") {
             GlobalStates.launcherMode = currentMode;
             Qt.callLater(() => {
-                launcherView.forceActiveFocus();
-                launcherView.focusSearchInput();
+                launcherView.item?.forceActiveFocus();
+                launcherView.item?.focusSearchInput();
             });
         } else if (currentMode !== "collapsed" && currentMode !== "notification" && currentMode !== "osd") {
             Qt.callLater(() => {
@@ -1006,9 +1000,10 @@ Item {
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 1: MAIN DASHBOARD HUB
             // ═══════════════════════════════════════════════════════════════
-            IslandDashboard {
+            Loader {
                 id: dashboardView
-                screen: root.screen
+                objectName: "island-content-dashboardView"
+                active: root.currentMode === "dashboard" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1025,25 +1020,30 @@ Item {
                     }
                 }
 
-                onOpenPower: root.currentMode = "power"
-                onOpenSound: root.currentMode = "sound"
-                onOpenMic: root.currentMode = "mic"
-                onOpenWifi: root.currentMode = "wifi"
-                onOpenBluetooth: root.currentMode = "bluetooth"
-                onOpenStats: root.currentMode = "stats"
-                onOpenAlerts: root.currentMode = "alerts"
-                onOpenWallpapers: root.currentMode = "wallpapers"
-                onOpenBattery: root.currentMode = "battery"
-                onOpenWeather: root.currentMode = "weather"
-                onOpenMedia: root.currentMode = "media"
-                onOpenCalendar: root.currentMode = "calendar"
+                sourceComponent: IslandDashboard {
+                    screen: root.screen
+                    onOpenPower: root.currentMode = "power"
+                    onOpenSound: root.currentMode = "sound"
+                    onOpenMic: root.currentMode = "mic"
+                    onOpenWifi: root.currentMode = "wifi"
+                    onOpenBluetooth: root.currentMode = "bluetooth"
+                    onOpenStats: root.currentMode = "stats"
+                    onOpenAlerts: root.currentMode = "alerts"
+                    onOpenWallpapers: root.currentMode = "wallpapers"
+                    onOpenBattery: root.currentMode = "battery"
+                    onOpenWeather: root.currentMode = "weather"
+                    onOpenMedia: root.currentMode = "media"
+                    onOpenCalendar: root.currentMode = "calendar"
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 2: POWER MENU (Image 0)
             // ═══════════════════════════════════════════════════════════════
-            IslandPowerPanel {
+            Loader {
                 id: powerView
+                objectName: "island-content-powerView"
+                active: root.currentMode === "power" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1060,15 +1060,19 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
-                onActionTriggered: root.collapse()
+                sourceComponent: IslandPowerPanel {
+                    onBackRequested: root.expand("dashboard")
+                    onActionTriggered: root.collapse()
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 3: SOUND PANEL (Image 1)
             // ═══════════════════════════════════════════════════════════════
-            IslandSoundPanel {
+            Loader {
                 id: soundView
+                objectName: "island-content-soundView"
+                active: root.currentMode === "sound" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1085,14 +1089,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandSoundPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 3.5: MICROPHONE PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandMicPanel {
+            Loader {
                 id: micView
+                objectName: "island-content-micView"
+                active: root.currentMode === "mic" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1109,14 +1117,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandMicPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 4: WI-FI NETWORKS PANEL (Image 2)
             // ═══════════════════════════════════════════════════════════════
-            IslandWifiPanel {
+            Loader {
                 id: wifiView
+                objectName: "island-content-wifiView"
+                active: root.currentMode === "wifi" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1133,14 +1145,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandWifiPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 4.5: BLUETOOTH PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandBluetoothPanel {
+            Loader {
                 id: bluetoothView
+                objectName: "island-content-bluetoothView"
+                active: root.currentMode === "bluetooth" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1157,14 +1173,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandBluetoothPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5: SYSTEM RESOURCES STATS PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandStatsPanel {
+            Loader {
                 id: statsView
+                objectName: "island-content-statsView"
+                active: root.currentMode === "stats" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1181,14 +1201,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandStatsPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.5: ALERTS PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandAlertsPanel {
+            Loader {
                 id: alertsView
+                objectName: "island-content-alertsView"
+                active: root.currentMode === "alerts" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1205,15 +1229,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandAlertsPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.6: WALLPAPERS PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandWallpaperPanel {
+            Loader {
                 id: wallpapersView
-                screen: root.screen
+                objectName: "island-content-wallpapersView"
+                active: root.currentMode === "wallpapers" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1230,14 +1257,19 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandWallpaperPanel {
+                    screen: root.screen
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.7: BATTERY & POWER PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandBatteryPanel {
+            Loader {
                 id: batteryView
+                objectName: "island-content-batteryView"
+                active: root.currentMode === "battery" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1254,14 +1286,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandBatteryPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.8: WEATHER PANEL
             // ═══════════════════════════════════════════════════════════════
-            IslandWeatherPanel {
+            Loader {
                 id: weatherView
+                objectName: "island-content-weatherView"
+                active: root.currentMode === "weather" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1278,14 +1314,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandWeatherPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.9: DEDICATED MEDIA CENTER
             // ═══════════════════════════════════════════════════════════════
-            IslandMediaCenterPanel {
+            Loader {
                 id: mediaCenterView
+                objectName: "island-content-mediaCenterView"
+                active: root.currentMode === "media" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1302,14 +1342,18 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandMediaCenterPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
             // EXPANDED STATE 5.95: DEDICATED CALENDAR & DATE TIME
             // ═══════════════════════════════════════════════════════════════
-            IslandCalendarPanel {
+            Loader {
                 id: calendarView
+                objectName: "island-content-calendarView"
+                active: root.currentMode === "calendar" || opacity > 0
                 anchors.top: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: root.targetWidth
@@ -1326,7 +1370,9 @@ Item {
                     }
                 }
 
-                onBackRequested: root.expand("dashboard")
+                sourceComponent: IslandCalendarPanel {
+                    onBackRequested: root.expand("dashboard")
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -1351,13 +1397,16 @@ Item {
                     }
                 }
 
-                LauncherView {
+                Loader {
                     id: launcherView
+                    objectName: "island-content-launcher"
+                    active: root.currentMode === "apps" || root.currentMode === "projects" || launcherViewWrapper.opacity > 0
                     anchors.top: parent.top
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.topMargin: 8
                     width: launcherViewWrapper.width - 16
                     height: implicitHeight
+                    sourceComponent: LauncherView {}
                 }
             }
         }

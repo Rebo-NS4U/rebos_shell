@@ -77,15 +77,18 @@ Item {
                     id: launcherLoader
                     anchors.fill: parent
                     anchors.margins: root.contentPadding
-                    // Keep loaded so open/close does not hitch on first paint.
-                    active: true
+                    // Release hidden results after the closing animation.
+                    active: root.open || cardReveal.visible
                     sourceComponent: Component {
                         LauncherView {}
                     }
 
                     onLoaded: {
                         if (root.open)
-                            Qt.callLater(() => item.forceActiveFocus());
+                            Qt.callLater(() => {
+                                if (root.open && launcherLoader.item)
+                                    launcherLoader.item.forceActiveFocus();
+                            });
                     }
                 }
             }

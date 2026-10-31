@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import qs.modules.bar
 import QtQuick.Layouts
 import Quickshell.Io
@@ -15,7 +16,8 @@ import "../../widgets/dashboard/widgets"
 Item {
     id: root
 
-    property string currentTime: ""
+    readonly property string currentTime: Qt.formatDateTime(barClock.date,
+        Config.bar.use12hFormat ? "h:mm ap" : "hh:mm")
     property string currentDayAbbrev: ""
     property string currentFullDate: ""
 
@@ -49,9 +51,8 @@ Item {
             return;
         }
 
-        // Warm the dashboard so the open frame already has real size.
+        // Select content before opening so its first frame has the right size.
         GlobalStates.dashboardCurrentTab = 0;
-        dashboardLoader.active = true;
         // Single open path: claimBarPopup quick-closes weather and opens
         // dashboard in the same turn (no double-close / callLater hitch).
         dashboardPopup.open();
@@ -64,7 +65,6 @@ Item {
         }
 
         GlobalStates.dashboardCurrentTab = 1;
-        dashboardLoader.active = true;
         dashboardPopup.open();
     }
 
@@ -727,8 +727,8 @@ Item {
 
                 Loader {
                     id: dashboardLoader
-                    // Always warm: weather→dashboard must not hitch on first create.
-                    active: true
+                    // Retain content through the closing animation, then release it.
+                    active: dashboardPopup.isOpen || dashboardPopup.menuShown || dashboardPopup.revealProgress > 0
                     anchors.fill: parent
                     anchors.margins: dashboardPopup.contentPadding
 
@@ -760,16 +760,10 @@ Item {
         scheduleNextDayUpdate();
     }
 
-    Timer {
-        interval: 1000
-        running: !SuspendManager.isSuspending
-        repeat: true
-        onTriggered: {
-            const now = new Date();
-            const format = Config.bar.use12hFormat ? "h:mm ap" : "hh:mm";
-            const formatted = Qt.formatDateTime(now, format);
-            root.currentTime = formatted;
-        }
+    SystemClock {
+        id: barClock
+        precision: SystemClock.Minutes
+        enabled: !SuspendManager.isSuspending
     }
 
     Timer {
@@ -788,10 +782,6 @@ Item {
     }
 
     Component.onCompleted: {
-        const now = new Date();
-        const format = Config.bar.use12hFormat ? "h:mm ap" : "hh:mm";
-        const formatted = Qt.formatDateTime(now, format);
-        root.currentTime = formatted;
         updateDay();
 
         const screenName = root.bar?.screen?.name ?? "";

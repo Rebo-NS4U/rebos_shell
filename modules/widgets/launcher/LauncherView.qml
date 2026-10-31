@@ -93,14 +93,15 @@ Item {
     // App launcher / run menu.
     Item {
         id: appLauncher
+        objectName: "launcher-apps"
         anchors.fill: parent
         visible: GlobalStates.launcherMode === "apps"
         enabled: visible
 
 
-        property string searchText: GlobalStates.launcherSearchText
+        readonly property string searchText: GlobalStates.launcherSearchText
         property bool showResults: searchText.length > 0
-        property int selectedIndex: GlobalStates.launcherSelectedIndex
+        readonly property int selectedIndex: GlobalStates.launcherSelectedIndex
 
         // Options menu state (expandable list)
         property int expandedItemIndex: -1
@@ -161,6 +162,10 @@ Item {
             if (appsModel.count > nextApps.length)
                 appsModel.remove(nextApps.length, appsModel.count - nextApps.length);
             appsById = nextById;
+            // ListView can clamp its index during model changes; selection stays
+            // owned by GlobalStates instead of feeding model changes back into it.
+            if (GlobalStates.launcherSelectedIndex >= appsModel.count)
+                GlobalStates.launcherSelectedIndex = appsModel.count - 1;
         }
 
         function executeApp(appId) {
@@ -269,6 +274,7 @@ Item {
             // Search input
             SearchInput {
                 id: searchInput
+                objectName: "launcher-search"
                 variant: "internalbg"
                 width: parent.width
                 anchors.top: parent.top
@@ -281,20 +287,15 @@ Item {
                 onSearchTextChanged: text => {
 
                     GlobalStates.launcherSearchText = text;
-                    appLauncher.searchText = text;
 
                     resultsList.enableScrollAnimation = false;
 
                     if (text.length > 0) {
-                        GlobalStates.launcherSelectedIndex = 0;
-                        appLauncher.selectedIndex = 0;
-                        resultsList.currentIndex = 0;
+                        GlobalStates.launcherSelectedIndex = appsModel.count > 0 ? 0 : -1;
 
                         resultsList.contentY = 0;
                     } else {
                         GlobalStates.launcherSelectedIndex = -1;
-                        appLauncher.selectedIndex = -1;
-                        resultsList.currentIndex = -1;
 
                         resultsList.contentY = 0;
                     }
@@ -384,12 +385,8 @@ Item {
 
                         if (appLauncher.selectedIndex === -1) {
                             GlobalStates.launcherSelectedIndex = 0;
-                            appLauncher.selectedIndex = 0;
-                            resultsList.currentIndex = 0;
                         } else if (appLauncher.selectedIndex < resultsList.count - 1) {
                             GlobalStates.launcherSelectedIndex++;
-                            appLauncher.selectedIndex++;
-                            resultsList.currentIndex = appLauncher.selectedIndex;
                         }
                     }
                 }
@@ -403,12 +400,8 @@ Item {
                         }
                     } else if (appLauncher.selectedIndex > 0) {
                         GlobalStates.launcherSelectedIndex--;
-                        appLauncher.selectedIndex--;
-                        resultsList.currentIndex = appLauncher.selectedIndex;
                     } else if (appLauncher.selectedIndex === 0 && appLauncher.searchText.length === 0) {
                         GlobalStates.launcherSelectedIndex = -1;
-                        appLauncher.selectedIndex = -1;
-                        resultsList.currentIndex = -1;
                     }
                 }
 
@@ -420,8 +413,6 @@ Item {
                             newIndex = Math.min(visibleItems - 1, resultsList.count - 1);
                         }
                         GlobalStates.launcherSelectedIndex = newIndex;
-                        appLauncher.selectedIndex = newIndex;
-                        resultsList.currentIndex = appLauncher.selectedIndex;
                     }
                 }
 
@@ -433,24 +424,18 @@ Item {
                             newIndex = Math.max(resultsList.count - visibleItems, 0);
                         }
                         GlobalStates.launcherSelectedIndex = newIndex;
-                        appLauncher.selectedIndex = newIndex;
-                        resultsList.currentIndex = appLauncher.selectedIndex;
                     }
                 }
 
                 onHomePressed: {
                     if (resultsList.count > 0) {
                         GlobalStates.launcherSelectedIndex = 0;
-                        appLauncher.selectedIndex = 0;
-                        resultsList.currentIndex = 0;
                     }
                 }
 
                 onEndPressed: {
                     if (resultsList.count > 0) {
                         GlobalStates.launcherSelectedIndex = resultsList.count - 1;
-                        appLauncher.selectedIndex = resultsList.count - 1;
-                        resultsList.currentIndex = appLauncher.selectedIndex;
                     }
                 }
             }
@@ -507,6 +492,7 @@ Item {
             // Results list
             ListView {
                 id: resultsList
+                objectName: "launcher-results"
                 width: parent.width
                 anchors.top: searchInput.bottom
                 anchors.bottom: keyboardHints.top
@@ -536,11 +522,6 @@ Item {
                 }
 
                 onCurrentIndexChanged: {
-                    if (currentIndex !== appLauncher.selectedIndex) {
-                        GlobalStates.launcherSelectedIndex = currentIndex;
-                        appLauncher.selectedIndex = currentIndex;
-                    }
-
                     // Manual smooth auto-scroll accounting for variable height items
                     if (currentIndex >= 0) {
                         var itemY = 0;
@@ -620,8 +601,6 @@ Item {
                                 return;
                             if (appLauncher.expandedItemIndex === -1) {
                                 GlobalStates.launcherSelectedIndex = index;
-                                appLauncher.selectedIndex = index;
-                                resultsList.currentIndex = index;
                             }
                         }
 
@@ -639,13 +618,9 @@ Item {
                                     appLauncher.keyboardNavigation = false;
                                     // Update selection to current hover position after closing
                                     GlobalStates.launcherSelectedIndex = index;
-                                    appLauncher.selectedIndex = index;
-                                    resultsList.currentIndex = index;
                                 } else {
                                     appLauncher.expandedItemIndex = index;
                                     GlobalStates.launcherSelectedIndex = index;
-                                    appLauncher.selectedIndex = index;
-                                    resultsList.currentIndex = index;
                                     appLauncher.selectedOptionIndex = 0;
                                     appLauncher.keyboardNavigation = false;
                                 }
