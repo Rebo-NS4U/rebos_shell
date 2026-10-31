@@ -65,6 +65,34 @@ Or use the CLI wrapper:
 ./cli.sh
 ```
 
+## Update an existing checkout
+
+Use the separate updater to get new content from `Dytox2/rebos_shell` without
+running the installer:
+
+```bash
+./update.sh --check   # Preview the changes first
+./update.sh           # Apply the update
+```
+
+It follows GitHub's default branch. Use `--branch NAME` to select another branch,
+or `--path /path/to/rebos_shell` to update another existing checkout. It requires
+Git and Python 3 and does not install packages or restart desktop services.
+For a Nix-managed installation, update through Nix instead.
+
+Only changed source files are replaced. Obsolete tracked files are removed;
+unrelated untracked files remain. Local code edits and files that collide with new
+source files are backed up before replacement. Each backup contains only affected
+existing files, a Git index copy, and a manifest listing the old/new commits and
+added/removed paths. Its location is printed during the update, normally under
+`~/.local/state/rebos_shell/backups/update-*`. Directory conflicts stop the update
+before any source files are changed.
+
+Saved preferences under `~/.config/rebos_shell`, personal state/data/cache,
+wallpapers, and Niri settings are left in place (including custom XDG locations).
+New settings continue to use the shell's normal defaults. Source changes are
+picked up by Quickshell's normal hot reload.
+
 The installer and Nix package are still inherited scaffolding and may need
 adjustment for this fork.
 
