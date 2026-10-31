@@ -747,9 +747,8 @@ Item {
                             verticalAlignment: Text.AlignVCenter
                             progress: (root.isMediaPlaying && MprisController.length > 0) ? MprisController.progress : 0.0
                             isPlaying: root.isMediaPlaying
-                            baseColor: Colors.overBackground
-                            fillColor: Colors.primary
-                            highlightColor: Colors.primaryFixed ?? Colors.primary
+                            baseColor: BarAppearance.foregroundColor
+                            fillColor: BarAppearance.foregroundColor
                         }
 
                         MouseArea {
@@ -811,19 +810,25 @@ Item {
                             }
                         }
 
-                        RowLayout {
+                        FontMetrics {
+                            id: clockMetrics
+                            font: dateTimeRow.font
+                        }
+
+                        StyledText {
                             id: dateTimeRow
                             anchors.centerIn: parent
-                            spacing: 6
-
-                            StyledText {
-                                text: root.formattedTime
-                                font.family: Config.theme.monoFont
-                                font.pixelSize: Styling.fontSize(-1)
-                                font.bold: true
-                                color: dateMouse.containsMouse ? Colors.primary : Colors.overBackground
-                                renderType: Text.NativeRendering
-                            }
+                            // Center the painted glyphs rather than the font's
+                            // asymmetric ascent/descent whitespace.
+                            readonly property rect glyphBounds: clockMetrics.tightBoundingRect(text)
+                            anchors.verticalCenterOffset: Math.round(height / 2
+                                - baselineOffset - glyphBounds.y - glyphBounds.height / 2)
+                            text: root.formattedTime
+                            font.family: Config.theme.monoFont
+                            font.pixelSize: Styling.fontSize(-1)
+                            font.bold: true
+                            color: BarAppearance.foregroundColor
+                            renderType: Text.NativeRendering
                         }
 
                         MouseArea {
@@ -925,7 +930,7 @@ Item {
                                 font.family: Config.theme.monoFont
                                 font.pixelSize: Styling.fontSize(-2)
                                 font.bold: true
-                                color: root.hasNotifications ? Colors.primary : (alertsMouse.containsMouse ? Colors.primary : Colors.overBackground)
+                                color: BarAppearance.foregroundColor
                                 renderType: Text.NativeRendering
                             }
                         }

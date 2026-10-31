@@ -41,7 +41,7 @@ RowLayout {
             return "light_mode";
         }
 
-        readonly property color iconColor: BarAppearance.iconColor
+        readonly property color iconColor: BarAppearance.foregroundColor
 
         StyledRect {
             anchors.fill: parent
@@ -127,7 +127,7 @@ RowLayout {
             return "volume_up";
         }
 
-        readonly property color iconColor: BarAppearance.iconColor
+        readonly property color iconColor: BarAppearance.foregroundColor
 
         StyledRect {
             anchors.fill: parent
@@ -200,7 +200,7 @@ RowLayout {
         readonly property int percent: Battery.percent
         readonly property bool charging: Battery.charging
 
-        readonly property color iconColor: BarAppearance.iconColor
+        readonly property color iconColor: BarAppearance.foregroundColor
 
         StyledRect {
             anchors.fill: parent

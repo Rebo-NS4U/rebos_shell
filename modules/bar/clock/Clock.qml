@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import qs.modules.bar
 import QtQuick.Layouts
 import Quickshell.Io
 import qs.config
@@ -136,7 +137,7 @@ Item {
                     text: root.weatherAvailable
                         ? WeatherService.weatherSymbol + " " + Math.round(WeatherService.currentTemp) + "°"
                         : root.currentDayAbbrev
-                    color: root.anyPopupOpen ? buttonBg.item : Colors.overBackground
+                    color: BarAppearance.foregroundColor
                     font.pixelSize: Config.theme.fontSize
                     font.family: Config.theme.font
                     font.bold: true
@@ -183,7 +184,7 @@ Item {
                     id: dateDisplay
                     anchors.centerIn: parent
                     text: root.currentFullDate
-                    color: root.anyPopupOpen ? buttonBg.item : Colors.overBackground
+                    color: BarAppearance.foregroundColor
                     font.pixelSize: Config.theme.fontSize
                     font.family: Config.theme.font
                     font.weight: Font.Medium
@@ -224,7 +225,7 @@ Item {
                     text: pomodoroWidget.isRunning || pomodoroWidget.alarmActive || pomodoroWidget.isResuming
                         ? root.formatDuration(pomodoroWidget.timeLeft)
                         : root.currentTime
-                    color: root.anyPopupOpen ? buttonBg.item : Colors.overBackground
+                    color: BarAppearance.foregroundColor
                     font.pixelSize: Config.theme.fontSize
                     font.family: Config.theme.font
                     font.bold: true
@@ -594,7 +595,7 @@ Item {
                                             }
 
                                             StyledToolTip {
-                                                visible: weatherBtn.buttonHovered
+                                                show: weatherBtn.buttonHovered
                                                 tooltipText: weatherBtn.modelData.name
                                             }
                                         }

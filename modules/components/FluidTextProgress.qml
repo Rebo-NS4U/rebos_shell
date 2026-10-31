@@ -17,7 +17,6 @@ Item {
     property bool isPlaying: false
     property color baseColor: Colors.overBackground
     property color fillColor: Colors.primary
-    property color highlightColor: Colors.primaryFixed ?? Colors.primary
 
     readonly property bool showFluidBar: root.isPlaying && root.progress > 0.0
 
@@ -48,28 +47,11 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: root.pixelSize
         font.bold: root.bold
-        color: (root.isPlaying && root.progress <= 0.0) ? root.fillColor : root.baseColor
+        color: root.baseColor
         elide: root.elide
         verticalAlignment: root.verticalAlignment
         renderType: Text.NativeRendering
         font.hintingPreference: Font.PreferFullHinting
-
-        layer.enabled: root.showFluidBar
-        layer.smooth: true
-        layer.effect: ShaderEffect {
-            property real progress: Math.max(0.0, Math.min(1.0, root.progress))
-            property real phase: root.phase
-            property real isPlaying: root.isPlaying ? 1.0 : 0.0
-            property real canvasWidth: baseText.width
-            property real canvasHeight: baseText.height
-            property vector2d _pad: Qt.vector2d(0, 0)
-            property vector4d baseColor: Qt.vector4d(root.baseColor.r, root.baseColor.g, root.baseColor.b, root.baseColor.a)
-            property vector4d fillColor: Qt.vector4d(root.fillColor.r, root.fillColor.g, root.fillColor.b, root.fillColor.a)
-            property vector4d highlightColor: Qt.vector4d(root.highlightColor.r, root.highlightColor.g, root.highlightColor.b, root.highlightColor.a)
-
-            vertexShader: "fluid_progress.vert.qsb"
-            fragmentShader: "fluid_progress.frag.qsb"
-        }
     }
 
     Canvas {

@@ -89,7 +89,7 @@ ColumnLayout {
                 }
                 onClicked: { if (modelData.onClicked) modelData.onClicked(); }
                 StyledToolTip {
-                    visible: actionButton.hovered && (actionButton.modelData.tooltip || "").length > 0
+                    show: actionButton.hovered && (actionButton.modelData.tooltip || "").length > 0
                     tooltipText: actionButton.modelData.tooltip || ""
                 }
             }

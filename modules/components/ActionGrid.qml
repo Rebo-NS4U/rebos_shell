@@ -331,7 +331,7 @@ FocusScope {
                         }
 
                         StyledToolTip {
-                            visible: parent.hovered
+                            show: parent.hovered
                             tooltipText: modelData.tooltip || ""
                             delay: 500
                         }

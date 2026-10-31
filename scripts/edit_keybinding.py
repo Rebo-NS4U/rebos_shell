@@ -75,6 +75,34 @@ def save(request, config_dir):
         raise ValueError("This configuration changed. Refresh the list before saving.")
     replacement = json.dumps(new_key) if original[binding["start"]] == '"' else new_key
     candidate = original[:binding["start"]] + replacement + original[binding["end"]:]
+    if target.name in {"keybindings-defaults.kdl", "keybindings-personal.kdl",
+                       "keybindings-defaults.conf", "keybindings-personal.conf"}:
+        source = target
+        if binding["group"] == "Desktop · Niri":
+            declaration = new_key + original[binding["end"]:binding["declarationEnd"]]
+            target = target.with_name("keybindings-personal.kdl")
+            if source == target:
+                original = target.read_text()
+                disabled = json.dumps(binding["rawKey"]) + ' hotkey-overlay-title=null { spawn "/usr/bin/true"; }'
+                candidate = original[:binding["start"]] + disabled + original[binding["declarationEnd"]:]
+                candidate = insert_niri(candidate, "    " + declaration + "\n")
+            else:
+                original = target.read_text()
+                candidate = insert_niri(original, "    " + json.dumps(binding["rawKey"]) + ' hotkey-overlay-title=null { spawn "/usr/bin/true"; }\n    ' + declaration + "\n")
+        else:
+            start = original.rfind("\n", 0, binding["start"]) + 1
+            end = original.find("\n", binding["end"])
+            if end < 0:
+                end = len(original)
+            declaration = original[start:binding["start"]] + new_key + original[binding["end"]:end]
+            target = target.with_name("keybindings-personal.conf")
+            disabled = "map " + binding["rawKey"] + " no_op\n"
+            if source == target:
+                candidate = original[:start] + disabled + original[end:]
+            else:
+                original = target.read_text()
+                candidate = original.rstrip() + "\n" + disabled
+            candidate = candidate.rstrip() + "\n" + declaration + "\n"
     return persist(target, original, candidate, binding["group"], new_key)
 
 
@@ -128,10 +156,16 @@ def add(request, config_dir):
     for row in data["bindings"]:
         if row["group"] == group and equivalent(row["rawKey"], group) == equivalent(key, group):
             raise ValueError("That shortcut is already assigned to " + row["action"] + ".")
-    target = (config_dir / "niri/config.kdl").resolve(strict=True)
+    personal = config_dir / "niri/keybindings-personal.kdl"
+    target = (personal if personal.exists() else config_dir / "niri/config.kdl").resolve(strict=True)
     original = target.read_text()
     title = " hotkey-overlay-title=" + json.dumps(name, ensure_ascii=False) if name else ""
     line = "    " + json.dumps(key) + title + " { spawn \"sh\" \"-c\" " + json.dumps(command, ensure_ascii=False) + "; }\n"
+    candidate = insert_niri(original, line)
+    return persist(target, original, candidate, group, key)
+
+
+def insert_niri(original, line):
     # A KDL file may contain only one binds node. Insert in its existing block,
     # or create one locally when bindings are supplied by included profiles.
     matches = token_matches(original)
@@ -153,7 +187,7 @@ def add(request, config_dir):
         candidate = original + "\nbinds {\n" + line + "}\n"
     else:
         candidate = original[:insertion] + "\n" + line + original[insertion:]
-    return persist(target, original, candidate, group, key)
+    return candidate
 
 
 if __name__ == "__main__":

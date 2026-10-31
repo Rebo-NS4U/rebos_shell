@@ -4,7 +4,7 @@ var styles = [
     {id: "glass", label: "Transparent", description: "Dark transparent backgrounds with light wallpaper colors."},
     {id: "quiet", label: "Opaque", description: "Solid backgrounds with less wallpaper color."},
     {id: "colorful", label: "Tinted", description: "Transparent backgrounds with more wallpaper color."},
-    {id: "dithered", label: "Dithered", description: "Dithered wallpapers, adjustable dotted surfaces and matching app colors."},
+    {id: "dithered", label: "Dithered", description: "Dithered wallpapers, fine shell texture and matching app colors."},
     {id: "custom", label: "Custom", description: "Use your saved background and border settings."}
 ];
 
@@ -45,17 +45,18 @@ function dotColor(fill, text, amount) {
 // Every surface uses one hierarchy, with the wallpaper palette supplying all color.
 function ditherCellSize(strength) {
     var value = Number.isFinite(strength) ? Math.max(0, Math.min(100, strength)) : 20;
-    return 0.75 + value * 0.0375;
+    // A fine shared grid stays restrained even at higher strengths.
+    return 1 + value * 0.02;
 }
 
 function surface(style, variant, p, ditherStrength) {
     var strength = Number.isFinite(ditherStrength) ? Math.max(0, Math.min(100, ditherStrength)) : 20;
     var colorful = style === "colorful", dithered = style === "dithered", quiet = style === "quiet" || dithered;
     var tint = colorful ? 0.10 : (quiet ? 0.015 : 0.035);
-    var base = mix(p.background, p.foreground, 0.035);
+    var base = mix(p.background, p.foreground, dithered ? 0.025 : 0.035);
     var fill = mix(base, p.primary, tint), item = p.foreground;
     var opacity = quiet ? 1 : 0.92;
-    var border = [mix(base, p.primary, dithered ? 0.38 : (colorful ? 0.32 : 0.18)), 0];
+    var border = [mix(base, p.primary, dithered ? 0.24 : (colorful ? 0.32 : 0.18)), 0];
     switch (variant) {
     case "transparent": opacity = 0; break;
     case "barbg": opacity = dithered && strength > 0 ? 1 : 0; break;
@@ -66,13 +67,13 @@ function surface(style, variant, p, ditherStrength) {
         opacity = quiet ? 1 : 0.94;
         border[1] = 1; break;
     case "bar": case "pane": case "surface": case "surfaceContainer":
-        fill = mix(base, p.primary, tint + 0.02);
+        fill = mix(base, p.primary, tint + (dithered ? 0.045 : 0.02));
         opacity = quiet ? 1 : 0.90; break;
     case "internalbg":
         fill = mix(p.background, p.primary, tint * 0.6);
         opacity = quiet ? 1 : 0.72; break;
     case "focus": case "surfaceVariant":
-        fill = mix(base, p.primary, colorful ? 0.28 : (quiet ? 0.10 : 0.16));
+        fill = mix(base, p.primary, colorful ? 0.28 : (dithered ? 0.14 : (quiet ? 0.10 : 0.16)));
         border[1] = 1; break;
     case "primary": case "primaryfocus":
         fill = variant === "primaryfocus" ? mix(p.primary, p.foreground, 0.12) : p.primary;
@@ -89,16 +90,18 @@ function surface(style, variant, p, ditherStrength) {
     var controls = ["primary", "primaryfocus", "overprimary", "secondary", "secondaryfocus", "oversecondary", "tertiary", "tertiaryfocus", "overtertiary", "error", "errorfocus", "overerror"];
     var dotted = dithered && strength > 0 && (containers.indexOf(variant) !== -1 ||
         (strength > 20 && controls.indexOf(variant) !== -1));
-    // 20 preserves the original subtle 3px pattern. Higher values grow the
-    // pattern up to 9px and increase contrast; zero disables shell texture.
+    // Strength increases the shared grain scale and contrast smoothly; zero
+    // disables texture. Keep text and selected controls clearly legible.
     var dotMax = ditherCellSize(strength);
-    var bar = variant === "bar" || variant === "barbg";
+    // Inner dividers recede; outer edges and focused controls retain definition.
+    if (dithered && ["pane", "surface", "surfaceContainer", "common", "internalbg"].indexOf(variant) !== -1)
+        border[0] = mix(fill, p.primary, 0.12);
     if (dotted && containers.indexOf(variant) !== -1) border[1] = 1;
     return {
         gradient: [[fill, 0]], gradientType: dotted ? "halftone" : "linear", gradientAngle: 0,
         gradientCenterX: 0.5, gradientCenterY: 0.5,
         halftoneDotMin: dotted ? dotMax : 0, halftoneDotMax: dotted ? dotMax : 0, halftoneStart: 0, halftoneEnd: 1,
-        halftoneDotColor: dotted ? dotColor(fill, item, bar ? Math.max(0.09, strength * 0.00175) : strength * 0.00175) : fill, halftoneBackgroundColor: fill,
+        halftoneDotColor: dotted ? dotColor(fill, item, strength * 0.001) : fill, halftoneBackgroundColor: fill,
         border: border, itemColor: item, opacity: opacity
     };
 }

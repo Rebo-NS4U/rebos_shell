@@ -172,7 +172,7 @@ Item {
                 }
 
                 StyledToolTip {
-                    visible: addMouseArea.containsMouse
+                    show: addMouseArea.containsMouse
                     tooltipText: "Add Stop"
                 }
             }
@@ -412,7 +412,7 @@ Item {
                 }
 
                 StyledToolTip {
-                    visible: resetMouseArea.containsMouse
+                    show: resetMouseArea.containsMouse
                     tooltipText: "Reset Gradient"
                 }
             }
@@ -566,7 +566,7 @@ Item {
                             }
 
                             StyledToolTip {
-                                visible: deleteMouseArea.containsMouse
+                                show: deleteMouseArea.containsMouse
                                 text: "Delete stop"
                             }
                         }

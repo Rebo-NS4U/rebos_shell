@@ -1226,7 +1226,7 @@ Item {
         IslandMediaCard {
             objectName: "dashboardMedia"
             Layout.fillWidth: true
-            Layout.preferredHeight: 88
+            Layout.preferredHeight: implicitHeight
             onExpandRequested: root.openMedia()
         }
 

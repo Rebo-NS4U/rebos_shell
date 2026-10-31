@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import qs.modules.bar
 import QtQuick.Layouts
 import qs.modules.components
 import qs.modules.services
@@ -68,13 +69,13 @@ StyledRect {
             text: AudioFormat.kindIcon
             font.family: Icons.font
             font.pixelSize: 14
-            color: root.flat && root.isHovered ? Colors.primary : Colors.overBackground
+            color: BarAppearance.foregroundColor
             Layout.alignment: Qt.AlignVCenter
         }
 
         StyledText {
             text: AudioFormat.formatSummary
-            color: root.flat && root.isHovered ? Colors.primary : Colors.overBackground
+            color: BarAppearance.foregroundColor
             Layout.alignment: Qt.AlignVCenter
         }
     }

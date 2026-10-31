@@ -167,7 +167,7 @@ Item {
             text: Battery.available ? (Battery.isPluggedIn ? Icons.plug : Icons.lightning) : PowerProfile.getProfileIcon(PowerProfile.currentProfile)
             font.family: Icons.font
             font.pixelSize: root.flat ? (Battery.available ? 11 : 14) : (Battery.available ? 14 : 18)
-            color: root.popupOpen ? buttonBg.item : Colors.overBackground
+            color: BarAppearance.foregroundColor
 
             Behavior on color {
                 enabled: Config.animDuration > 0
@@ -188,7 +188,7 @@ Item {
         }
 
         StyledToolTip {
-            visible: root.isHovered && !root.popupOpen
+            show: root.isHovered && !root.popupOpen
             tooltipText: Battery.available ? ("Battery: " + Math.round(Battery.percentage) + "%" + (Battery.isCharging ? " (Charging)" : "")) : ("Power Profile: " + PowerProfile.getProfileDisplayName(PowerProfile.currentProfile))
         }
     }

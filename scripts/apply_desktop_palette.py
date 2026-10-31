@@ -138,7 +138,7 @@ def apply(p, home):
           'layout {\n'
           '    border {\n'
           f'        active-color "{accent}"\n'
-          f'        inactive-color "{p["outlineVariant"]}"\n'
+          f'        inactive-color "{p["secondary"]}99"\n'
           '    }\n'
           '    focus-ring {\n'
           f'        active-color "{accent}"\n'

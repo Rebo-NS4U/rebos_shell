@@ -14,7 +14,7 @@ class TaskbarEntryTest(unittest.TestCase):
    write('config/Config.qml','pragma Singleton\nimport QtQuick\nQtObject { property int animDuration: 180 }')
    write('modules/theme/Styling.qml','pragma Singleton\nimport QtQuick\nQtObject {function fontSize(n){return 14;} function radius(n){return 10;}}')
    write('modules/theme/Colors.qml','pragma Singleton\nimport QtQuick\nQtObject {property color primary:"pink";property color red:"red";property color overSurfaceVariant:"gray";}')
-   write('modules/bar/BarAppearance.qml','pragma Singleton\nimport QtQuick\nQtObject {property color iconColor:"white";}')
+   write('modules/bar/BarAppearance.qml','pragma Singleton\nimport QtQuick\nQtObject {property color foregroundColor:"white";}')
    write('modules/bar/BarSymbol.qml','import QtQuick\nItem {property string symbol;property real size;property color color;}')
    write('modules/components/StyledRect.qml','import QtQuick\nRectangle {property string variant;property bool animateRadius;property bool enableBorder;property bool enableShadow;}')
    write('modules/components/StyledToolTip.qml','import QtQuick\nItem {property bool show;property string tooltipText;property string description;}')
@@ -49,6 +49,14 @@ class TaskbarEntryTest(unittest.TestCase):
       const original=find(taskbar,"workspace-1");check(original!==null);
       const before=taskbar.width;
       const first=find(taskbar,"window-dot-1");check(first!==null);
+      const empty=find(taskbar,"workspace-dot-2");
+      equal(empty.opacity,1);equal(empty.color.toString(),"#00000000");
+      equal(empty.border.color.toString(),first.color.toString());
+      check(empty.border.width>0,"empty workspace has a visible outline");
+      equal(empty.mapToItem(taskbar,0,empty.height/2).y,first.mapToItem(taskbar,0,first.height/2).y);
+      NiriService.spaces=[{id:1,active:false,idx:1},{id:2,active:true,idx:2}];wait(220);
+      equal(first.opacity,1);
+      NiriService.spaces=[{id:1,active:true,idx:1},{id:2,active:false,idx:2}];wait(220);
       NiriService.apps=[{id:1,appId:"kitty"},{id:2,appId:"firefox"},{id:3,appId:"mpv"}];
       wait(220);
       for(let id=1;id<=3;id++){

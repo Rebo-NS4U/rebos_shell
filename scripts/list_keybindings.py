@@ -47,7 +47,13 @@ def describe_niri(body):
     return label
 
 
-def collect(config_dir):
+def binding_identity(value):
+    parts = value.lower().split("+")
+    aliases = {"super": "mod", "mod4": "mod", "control": "ctrl"}
+    return tuple(sorted(aliases.get(part, part) for part in parts[:-1])) + (parts[-1],)
+
+
+def collect(config_dir, include_disabled=False):
     rows, files, errors = [], [], []
     visited = set()
 
@@ -72,9 +78,10 @@ def collect(config_dir):
         matches = token_matches(text)
         ts = [m.group() for m in matches]
         fingerprint = hashlib.sha256(text.encode()).hexdigest()
-        # Includes inherit the same config context, and may be symlinked profiles.
-        for i, token in enumerate(ts):
-            if token == "include":
+        i = 0
+        while i < len(ts) - 1:
+            # Includes are positional: later declarations override earlier keys.
+            if ts[i] == "include":
                 end = i + 1
                 while end < len(ts) and ts[end] not in ("\n", ";", "{"):
                     if ts[end].startswith('"'):
@@ -82,8 +89,6 @@ def collect(config_dir):
                         niri(included if included.is_absolute() else path.parent / included)
                         break
                     end += 1
-        i = 0
-        while i < len(ts) - 1:
             if ts[i:i + 2] != ["binds", "{"]:
                 i += 1
                 continue
@@ -116,10 +121,17 @@ def collect(config_dir):
                     if attributes[j:j + 2] == ["hotkey-overlay-title", "="] and attributes[j + 2] != "null":
                         title = unquote(attributes[j + 2]).strip()
                 body = [t for t in body if t != "\n"]
+                rows[:] = [row for row in rows if not (
+                    row["group"] == "Desktop · Niri"
+                    and binding_identity(row["rawKey"]) == binding_identity(key))]
+                disabled = not body or body == ["spawn", '"/usr/bin/true"', ";"]
+                if disabled and not include_disabled:
+                    continue
                 rows.append({"key": key.replace("Mod+", "Super+"),
                              "action": title or describe_niri(body),
                              "group": "Desktop · Niri", "source": str(path),
                              "rawKey": key, "start": key_match.start(), "end": key_match.end(),
+                             "declarationEnd": matches[i - 1].end(), "disabled": disabled,
                              "fingerprint": fingerprint, "editable": True})
             i += 1
 
@@ -141,19 +153,27 @@ def collect(config_dir):
             line = raw_line.rstrip("\r\n")
             line_start = offset
             offset += len(raw_line)
+            directive = line.split(None, 1)
+            if directive and directive[0] == "include" and len(directive) == 2:
+                filename = directive[1].strip()
+                if filename.startswith(('"', "'")):
+                    try:
+                        filename, = shlex.split(filename, comments=True)
+                    except ValueError:
+                        continue
+                included = Path(os.path.expandvars(filename)).expanduser()
+                pattern = included if included.is_absolute() else path.parent / included
+                import glob
+                for filename in sorted(glob.glob(str(pattern))):
+                    kitty(Path(filename))
+                continue
             try:
                 parts = shlex.split(line, comments=True)
             except ValueError:
                 continue
             if not parts:
                 continue
-            if parts[0] == "include" and len(parts) == 2:
-                included = Path(os.path.expandvars(parts[1])).expanduser()
-                pattern = included if included.is_absolute() else path.parent / included
-                import glob
-                for filename in sorted(glob.glob(str(pattern))):
-                    kitty(Path(filename))
-            elif parts[0] == "map" and len(parts) >= 3 and not parts[1].startswith("--"):
+            if parts[0] == "map" and len(parts) >= 3 and not parts[1].startswith("--"):
                 key, action = parts[1:3]
                 if action == "scroll_to_prompt":
                     label = "Previous command prompt" if parts[3:] == ["-1"] else "Next command prompt"
@@ -164,9 +184,11 @@ def collect(config_dir):
                 else:
                     label = labels.get(action, action.replace("_", " ").capitalize())
                 # Later Kitty maps override earlier maps of the same key.
-                rows[:] = [r for r in rows if not (r["group"] == "Terminal · Kitty" and r["key"].lower() == key.lower())]
+                rows[:] = [r for r in rows if not (r["group"] == "Terminal · Kitty" and binding_identity(r["rawKey"]) == binding_identity(key))]
                 match = re.match(r"\s*map\s+(\S+)", line)
                 editable = bool(match and match.group(1) == key)
+                if action == "no_op" and not include_disabled:
+                    continue
                 rows.append({"key": "+".join(k.capitalize() for k in key.split("+")),
                              "action": label, "group": "Terminal · Kitty", "source": str(path),
                              "rawKey": key, "start": line_start + match.start(1),

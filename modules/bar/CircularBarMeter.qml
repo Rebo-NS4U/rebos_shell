@@ -137,7 +137,7 @@ Item {
             text: root.icon
             font.family: Icons.font
             font.pixelSize: root.flat ? 11 : 14
-            color: Colors.overBackground
+            color: BarAppearance.foregroundColor
         }
 
         MouseArea {

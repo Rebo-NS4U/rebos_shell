@@ -104,12 +104,10 @@ Item {
                     width: workspaceButton.dotSize
                     height: width
                     radius: width / 2
-                    color: workspaceButton.workspace?.is_urgent ? Colors.red : BarAppearance.iconColor
-                    opacity: workspaceMouse.containsMouse ? 0.6 : 0.3
-                    Behavior on opacity {
-                        enabled: Config.animDuration > 0
-                        NumberAnimation { duration: Math.min(Config.animDuration, 150) }
-                    }
+                    // Shape distinguishes empty spaces without dimming their centerline.
+                    color: "transparent"
+                    border.color: BarAppearance.foregroundColor
+                    border.width: Math.max(1, Math.round(width / 6))
                 }
 
                 Row {
@@ -127,14 +125,14 @@ Item {
                             width: workspaceButton.dotSize
                             height: width
                             radius: width / 2
-                            color: workspaceButton.workspace?.is_urgent ? Colors.red : BarAppearance.iconColor
+                            color: BarAppearance.foregroundColor
                             property bool entered: false
                             Timer {
                                 running: true
                                 interval: 0
                                 onTriggered: windowDot.entered = true
                             }
-                            opacity: !entered ? 0 : (workspaceButton.active || workspaceMouse.containsMouse ? 1 : 0.65)
+                            opacity: entered ? 1 : 0
                             Behavior on opacity {
                                 enabled: Config.animDuration > 0
                                 NumberAnimation { duration: Math.min(Config.animDuration, 150) }
@@ -152,7 +150,7 @@ Item {
                     width: 2 * Math.round(root.workspaceHeight / 5)
                     height: Math.max(2, Math.round(Styling.fontSize(0) / 7))
                     radius: height / 2
-                    color: BarAppearance.iconColor
+                    color: BarAppearance.foregroundColor
                     opacity: workspaceButton.active ? 1 : 0
                     Behavior on opacity {
                         enabled: Config.animDuration > 0

@@ -15,7 +15,7 @@ class BarClicksTest(unittest.TestCase):
           dest=p/f;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy(src/f,dest)
          write('modules/bar/BarSymbol.qml','import QtQuick\nItem {property string symbol;property real size:18;property color color;implicitWidth:size;implicitHeight:size}')
          write('modules/theme/Icons.qml','pragma Singleton\nimport QtQuick\nQtObject {property string speakerSlash: "x";property string speakerNone: "0";property string speakerLow: "1";property string speakerHigh: "2";}')
-         write('modules/bar/BarAppearance.qml','pragma Singleton\nimport QtQuick\nQtObject {readonly property color iconColor: "white"}')
+         write('modules/bar/BarAppearance.qml','pragma Singleton\nimport QtQuick\nQtObject {readonly property color foregroundColor: "white"}')
          write('config/Config.qml','pragma Singleton\nimport QtQuick\nQtObject {property int animDuration: 0}')
          write('modules/theme/Colors.qml','pragma Singleton\nimport QtQuick\nQtObject {property color primary: "cyan"; property color overBackground: "white"; property color overSurfaceVariant: "gray"; property color error: "red";}')
          write('modules/theme/Styling.qml','pragma Singleton\nimport QtQuick\nQtObject {function radius(n) {return 10;}}')

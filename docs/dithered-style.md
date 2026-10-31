@@ -7,7 +7,7 @@ conversion service. Changing to another theme restores the original wallpaper.
 
 **Border style** offers **Dithered edge** (active default), **Round dots** and
 **Double line**. Dithered edge uses one uniform logical-pixel width across all
-panels: `Styling.ditherEdgeWidth = max(1, round(ditherCellSize * 1.5))`.
+panels: `Styling.ditherEdgeWidth = max(1, round(ditherCellSize * 0.75))`.
 A quiet base keeps the width visually continuous, with repeating light/dark
 pixel marks following the perimeter instead of scattered grain. Corner arcs use
 the same spacing as straight edges. Native focus widths are cleared beneath the
@@ -23,8 +23,8 @@ pixel size), **Strong** (active default: 6 colors, 2×2 dither pixels), and
 **Intense** (4 colors, 3×3 dither pixels). Changing it regenerates the current
 wallpaper and matching palette without changing the shell strength slider.
 
-The balanced preset uses opaque, palette-derived surfaces with a shared 3px
-dither pattern, stronger accent borders and the existing fonts and motion.
+The balanced preset uses opaque, palette-derived surfaces with a fine shared
+dither pattern, quiet accent borders and the existing fonts and motion.
 Text, icons and accent buttons stay crisp. Existing theme exporters send its
 matching background, surface, accent and border colors to GTK, Qt/KDE, Kitty,
 Fish/fzf, Neovim, Zen, Spotify, VS Code, Sioyek and the other supported targets.
@@ -32,13 +32,17 @@ App support/reload limitations remain the same as the other presets; a matching
 color export does not add dithering to app content or web pages.
 
 **Shell dithering** in the same Appearance card controls shell texture strength
-from 0–100%. The default **20%** uses a subtle 3px repeat. Higher
-values increase dot contrast and spacing (up to 9px) and extend halftone texture
+from 0–100%. The default **20%** uses a subtle 2.8px repeat. Higher
+values increase dot contrast and spacing (up to 6px) and extend halftone texture
 to accent buttons and selected controls. Zero removes shell texture. Text/icon
 rendering and wallpaper conversion are independent of this slider. Dot colors
 are limited to preserve at least 4.5:1 contrast with the surface's text color
 when the underlying palette already provides that contrast. Strength saves
 through reactive `theme.ditherStrength` and updates the shell immediately.
+
+Settings uses the same shared surface fills and Dithered outlines as other shell
+panels; window titles do not override the theme. Explicit control and focus borders
+keep their normal priority.
 
 The island and default bars, expanded panels, menus, controls and outlines all
 use one shared scale. `ShellStyles.ditherCellSize` defines one cell
@@ -48,9 +52,9 @@ Round-dot outlines place antialiased circular dots along the rounded perimeter, 
 diameter from that same cell size. The dot count is rounded to close the loop
 with even gaps, avoiding checker fragments at corners and an uneven seam.
 The outline band grows inward only as much as needed to fit the dots, honoring
-wider focus borders. At 20%, each cell is 1.5 logical
-pixels and the repeat is 3px. Bar contrast is stronger to remain visible, without
-changing the pattern size. Wallpaper diffusion remains a separate image effect.
+wider focus borders. At 20%, each cell is 1.4 logical
+pixels and the repeat is 2.8px. Bar and panels share the same restrained
+texture contrast. Inner outlines are quieter than outer and focused edges. Wallpaper diffusion remains a separate image effect.
 Shared shell containers receive
 dotted outlines. The outline shader paints an antialiased stippled
 ring above the native solid border, respecting per-corner radii, border widths

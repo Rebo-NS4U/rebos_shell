@@ -81,8 +81,8 @@ for (const strength of [0,20,50,75,100]) {
     }
 }
 const subtle=styles.surface('dithered','bg',palettes[0],20);
-assert.strictEqual(subtle.halftoneDotMax,1.5);
-assert.strictEqual(subtle.halftoneDotColor,styles.mix(subtle.gradient[0][0],palettes[0].foreground,0.035));
+assert.strictEqual(subtle.halftoneDotMax,1.4);
+assert.strictEqual(subtle.halftoneDotColor,styles.mix(subtle.gradient[0][0],palettes[0].foreground,0.02));
 const bold=styles.surface('dithered','bg',palettes[0],100);
 assert(bold.halftoneDotMax>subtle.halftoneDotMax);
 assert.notStrictEqual(bold.halftoneDotColor,subtle.halftoneDotColor);

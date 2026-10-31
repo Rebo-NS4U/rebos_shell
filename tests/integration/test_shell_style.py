@@ -80,19 +80,17 @@ ShellRoot {
      if (style === "colorful") compare(settings.rectOpacity,0.82);
      if (style === "dithered") {
       verify(settings.ditheredOutline);
-      window.title="rebos_shell Settings";
-      tryCompare(settings,"ditheredOutline",false);
-      for (const surface of [settings,menu,pane,bar]) {
-       compare(surface.plainWindowOutline,true);
-       compare(surface.border.width,1);
-       compare(surface.border.color.toString(),Qt.alpha(Colors.outline,0.3).toString());
+      // The same surface roles must keep their shared treatment in every host.
+      for (const title of ["rebos_shell Settings","rebos_shell Assistant",""]) {
+       window.title=title;
+       wait(50);
+       for (const surface of [settings,menu,pane,bar]) {
+        verify(surface.ditheredOutline);
+        compare(surface.border.width,surface.borderData[1]);
+        compare(surface.border.color.toString(),Config.resolveColor(surface.borderData[0]).toString());
+       }
+       checkPatternSizes();
       }
-      compare(settings.usesDitherGrid,true);
-      verify(settings.border.width > 0);
-      window.title="rebos_shell Assistant";
-      tryCompare(settings,"ditheredOutline",true);
-      compare(settings.plainWindowOutline,false);
-      window.title="";
       compare(settings.gradientType,"halftone"); compare(settings.rectOpacity,1);
       compare(menu.gradientType,"halftone"); compare(pane.gradientType,"halftone");
       verify(findChild(styles,"dither-palette") !== null);
@@ -143,7 +141,7 @@ ShellRoot {
       const slider=findChild(styles,"dither-strength");
       verify(slider !== null);
       compare(Config.theme.ditherStrength,20);
-      compare(settings.halftoneDotMax,1.5);
+      compare(settings.halftoneDotMax,1.4);
       verify(settings.ditheredOutline);
       verify(pane.ditheredOutline);
       compare(bar.gradientType,"halftone");
@@ -188,7 +186,7 @@ ShellRoot {
       compare(accent.gradientType,"linear");
       mouseClick(slider,slider.width*0.85,slider.height/2);
       verify(Config.theme.ditherStrength >= 80);
-      verify(settings.halftoneDotMax > 3);
+      verify(settings.halftoneDotMax > 2.5);
       compare(accent.gradientType,"halftone");
       checkPatternSizes();
       Config.theme.ditherStrength=0;

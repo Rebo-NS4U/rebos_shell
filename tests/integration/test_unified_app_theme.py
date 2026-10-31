@@ -26,7 +26,7 @@ class UnifiedAppThemeTest(unittest.TestCase):
         script = source + '\nconst raw = ' + json.dumps(palette) + '; console.log(JSON.stringify(["glass","quiet","colorful","custom","dithered"].map(s => appPalette(s, raw, 0.7))));'
         presets = json.loads(subprocess.check_output(['node', '-e', script], text=True))
         self.assertEqual([p['opacity'] for p in presets], [0.86, 1, 0.82, 0.7, 1])
-        self.assertEqual(len({p['background'] for p in presets}), 4)
+        self.assertEqual(len({p['background'] for p in presets}), 5)
         with tempfile.TemporaryDirectory(prefix='unified-theme-') as directory:
             home = Path(directory)
             profile = home / '.config/zen/default'

@@ -661,8 +661,10 @@ PanelWindow {
                                 selected: true
                                 enabled: root.ready
                                 Accessible.name: "Play or resume " + poster.title
-                                ToolTip.visible: hovered
-                                ToolTip.text: "Play or resume directly · P on a selected card"
+                                StyledToolTip {
+                                    show: parent.hovered
+                                    tooltipText: "Play or resume directly · P on a selected card"
+                                }
                                 onClicked: root.playCard(poster.index)
                             }
                         }

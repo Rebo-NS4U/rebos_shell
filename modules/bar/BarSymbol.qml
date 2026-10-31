@@ -9,7 +9,7 @@ Item {
     id: root
     property string symbol: ""
     property real size: 18
-    property color color: BarAppearance.iconColor
+    property color color: BarAppearance.foregroundColor
     implicitWidth: size
     implicitHeight: size
 

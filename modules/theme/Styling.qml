@@ -22,7 +22,7 @@ Singleton {
     readonly property string shellStyle: Config.theme?.shellStyle ?? "glass"
     readonly property bool unifiedStyle: shellStyle !== "custom"
     readonly property real ditherCellSize: ShellStyles.ditherCellSize(Config.theme.ditherStrength)
-    readonly property real ditherEdgeWidth: Math.max(1, Math.round(ditherCellSize * 1.5))
+    readonly property real ditherEdgeWidth: Math.max(1, Math.round(ditherCellSize * 0.75))
 
     function radius(offset: real): real {
         const adjustment = unifiedStyle ? Math.max(-6, Math.min(6, offset * 0.35)) : offset;

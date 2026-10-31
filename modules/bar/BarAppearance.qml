@@ -7,8 +7,8 @@ import "../../config/defaults/bar.js" as BarDefaults
 
 Singleton {
     id: root
-    readonly property color iconColor: "#ffffff"
-    readonly property color activeWorkspaceOutline: iconColor
+    readonly property color foregroundColor: Colors.overBackground
+    readonly property color activeWorkspaceOutline: foregroundColor
     readonly property bool polished: (Config.bar?.islandAppearance ?? BarDefaults.data.islandAppearance) === "glass"
     readonly property real opacity: Math.max(20, Math.min(100, Config.bar?.islandOpacity ?? BarDefaults.data.islandOpacity)) / 100
     readonly property real accent: Math.max(0, Math.min(100, Config.bar?.islandAccent ?? BarDefaults.data.islandAccent)) / 100

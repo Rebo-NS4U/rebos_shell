@@ -97,7 +97,7 @@ StyledRect {
         }
 
         StyledToolTip {
-            visible: mouseArea.containsMouse && root.tooltipText !== ""
+            show: mouseArea.containsMouse && root.tooltipText !== ""
             tooltipText: root.tooltipText
         }
     }
