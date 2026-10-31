@@ -13,8 +13,18 @@ import qs.config
 
 Item {
     id: root
+    objectName: "islandDashboard"
 
-    implicitWidth: 400
+    property date currentDate: new Date()
+
+    Timer {
+        interval: 1000
+        running: root.visible
+        repeat: true
+        onTriggered: root.currentDate = new Date()
+    }
+
+    implicitWidth: 420
     implicitHeight: mainColumn.implicitHeight + 28
 
     signal openPower()
@@ -63,6 +73,7 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
+            root.currentDate = new Date();
             NetworkService.update();
             BluetoothService.updateStatus();
         }
@@ -113,156 +124,166 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: 14
-        spacing: 12
+        spacing: 10
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 1: HEADER (Clock, Date, Weather + Alerts, Settings, Power)
+        // HEADER: CLOCK, WEATHER & UTILITIES
         // ═══════════════════════════════════════════════════════════════
+        StyledRect {
+            objectName: "dashboardOverview"
+            Layout.fillWidth: true
+            implicitHeight: Math.max(clockDateCol.implicitHeight, 54) + 28
+            variant: "pane"
+            radius: Styling.radius(4)
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Item {
+                    id: clockDateBtn
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    implicitHeight: clockDateCol.implicitHeight
+                    scale: clockDateMouse.pressed ? 0.94 : 1.0
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: clockDateMouse.pressed ? Motion.press : Motion.feedback
+                            easing.type: Motion.feedbackCurve
+                            easing.overshoot: 1.4
+                        }
+                    }
+
+                    ColumnLayout {
+                        id: clockDateCol
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 3
+
+                        StyledText {
+                            id: clockText
+                            renderType: Text.NativeRendering
+                            font.hintingPreference: Font.PreferFullHinting
+                            text: Qt.formatTime(root.currentDate, Config.bar?.use12hFormat ? "h:mm ap" : "HH:mm")
+                            font.family: Config.theme.monoFont
+                            font.pixelSize: Styling.fontSize(14)
+                            font.bold: true
+                            color: clockDateMouse.containsMouse ? Colors.primary : Colors.overBackground
+
+                            Behavior on color {
+                                ColorAnimation { duration: Motion.feedback }
+                            }
+                        }
+
+                        StyledText {
+                            id: dateText
+                            renderType: Text.NativeRendering
+                            font.hintingPreference: Font.PreferFullHinting
+                            text: Qt.formatDate(root.currentDate, "dddd, d MMM")
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-1)
+                            color: clockDateMouse.containsMouse ? (Colors.primaryFixed ?? Colors.primary) : Colors.overSurfaceVariant
+                            Layout.maximumWidth: clockDateBtn.width
+                            elide: Text.ElideRight
+
+                            Behavior on color {
+                                ColorAnimation { duration: Motion.feedback }
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: clockDateMouse
+                        objectName: "dashboardClock"
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openCalendar()
+                    }
+
+                    StyledToolTip {
+                        show: clockDateMouse.containsMouse
+                        tooltipText: "Calendar & Time"
+                    }
+                }
+
+                // Weather card
+                StyledRect {
+                    implicitHeight: 54
+                    implicitWidth: weatherRow.implicitWidth + 24
+                    radius: Styling.radius(3)
+                    variant: weatherMouse.containsMouse ? "focus" : "internalbg"
+                    scale: weatherMouse.pressed ? 0.92 : 1.0
+
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: weatherMouse.pressed ? Motion.press : Motion.feedback
+                            easing.type: Motion.feedbackCurve
+                        }
+                    }
+
+                    RowLayout {
+                        id: weatherRow
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        StyledText {
+                            renderType: Text.NativeRendering
+                            font.hintingPreference: Font.PreferFullHinting
+                            text: WeatherService.weatherSymbol || Icons.sun
+                            font.family: Icons.font
+                            font.pixelSize: Styling.fontSize(8)
+                            color: Colors.yellow
+                        }
+
+                        StyledText {
+                            renderType: Text.NativeRendering
+                            font.hintingPreference: Font.PreferFullHinting
+                            text: WeatherService.dataAvailable
+                                ? Math.round(WeatherService.currentTemp) + "°" + Config.weather.unit
+                                : "--°" + Config.weather.unit
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(3)
+                            font.bold: true
+                            color: weatherMouse.containsMouse ? Colors.primary : Colors.overBackground
+                        }
+                    }
+
+                    MouseArea {
+                        id: weatherMouse
+                        objectName: "dashboardWeather"
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        onClicked: mouse => {
+                            if (mouse.button === Qt.RightButton)
+                                WeatherService.updateWeather();
+                            else
+                                root.openWeather();
+                        }
+                    }
+                    StyledToolTip {
+                        show: weatherMouse.containsMouse
+                        tooltipText: "Weather"
+                        description: "Click for forecast · Right-click to refresh"
+                    }
+                }
+
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
 
-            Item {
-                id: clockDateBtn
-                Layout.alignment: Qt.AlignVCenter
-                implicitWidth: clockDateCol.implicitWidth
-                implicitHeight: clockDateCol.implicitHeight
-                scale: clockDateMouse.pressed ? 0.94 : 1.0
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: clockDateMouse.pressed ? Motion.press : Motion.feedback
-                        easing.type: Motion.feedbackCurve
-                        easing.overshoot: 1.4
-                    }
-                }
-
-                ColumnLayout {
-                    id: clockDateCol
-                    anchors.centerIn: parent
-                    spacing: 1
-
-                    Text {
-                        id: clockText
-                        renderType: Text.NativeRendering
-                        font.hintingPreference: Font.PreferFullHinting
-                        text: Qt.formatTime(new Date(), Config.bar?.use12hFormat ? "hh:mm:ss ap" : "hh:mm:ss")
-                        font.family: Config.theme.monoFont
-                        font.pixelSize: Styling.fontSize(4)
-                        font.bold: true
-                        color: clockDateMouse.containsMouse ? Colors.primary : Colors.overBackground
-
-                        Behavior on color {
-                            ColorAnimation { duration: Motion.feedback }
-                        }
-
-                        Timer {
-                            interval: 1000
-                            running: true
-                            repeat: true
-                            onTriggered: clockText.text = Qt.formatTime(new Date(), Config.bar?.use12hFormat ? "hh:mm:ss ap" : "hh:mm:ss")
-                        }
-                    }
-
-                    Text {
-                        id: dateText
-                        renderType: Text.NativeRendering
-                        font.hintingPreference: Font.PreferFullHinting
-                        text: Qt.formatDate(new Date(), "ddd, d MMM")
-                        font.family: Config.theme.font
-                        font.pixelSize: Styling.fontSize(-1)
-                        color: clockDateMouse.containsMouse ? (Colors.primaryFixed ?? Colors.primary) : Colors.overSurfaceVariant
-                        Layout.maximumWidth: 160
-                        elide: Text.ElideRight
-
-                        Behavior on color {
-                            ColorAnimation { duration: Motion.feedback }
-                        }
-                    }
-                }
-
-                MouseArea {
-                    id: clockDateMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.openCalendar()
-                }
-
-                StyledToolTip {
-                    show: clockDateMouse.containsMouse
-                    tooltipText: "Calendar & Time"
-                }
-            }
-
-            Item { Layout.fillWidth: true }
-
-            // Weather pill
-            StyledRect {
-                implicitHeight: 32
-                implicitWidth: weatherRow.implicitWidth + 14
-                radius: height / 2
-                variant: weatherMouse.containsMouse ? "focus" : "internalbg"
-                scale: weatherMouse.pressed ? 0.92 : 1.0
-
-                Behavior on scale {
-                    NumberAnimation {
-                        duration: weatherMouse.pressed ? Motion.press : Motion.feedback
-                        easing.type: Motion.feedbackCurve
-                    }
-                }
-
-                RowLayout {
-                    id: weatherRow
-                    anchors.centerIn: parent
-                    spacing: 6
-
-                    Text {
-                        renderType: Text.NativeRendering
-                        font.hintingPreference: Font.PreferFullHinting
-                        text: WeatherService.weatherSymbol || Icons.sun
-                        font.family: Icons.font
-                        font.pixelSize: 15
-                        color: Colors.yellow
-                    }
-
-                    Text {
-                        renderType: Text.NativeRendering
-                        font.hintingPreference: Font.PreferFullHinting
-                        text: WeatherService.dataAvailable
-                            ? Math.round(WeatherService.currentTemp) + "°" + Config.weather.unit
-                            : "--°" + Config.weather.unit
-                        font.family: Config.theme.font
-                        font.pixelSize: Styling.fontSize(-1)
-                        font.bold: true
-                        color: weatherMouse.containsMouse ? Colors.primary : Colors.overBackground
-                    }
-                }
-
-                MouseArea {
-                    id: weatherMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onClicked: mouse => {
-                        if (mouse.button === Qt.RightButton)
-                            WeatherService.updateWeather();
-                        else
-                            root.openWeather();
-                    }
-                }
-                StyledToolTip {
-                    show: weatherMouse.containsMouse
-                    tooltipText: "Weather"
-                    description: "Click for forecast · Right-click to refresh"
-                }
-            }
-
             // Alerts / Notifications button
             StyledRect {
-                implicitHeight: 32
-                implicitWidth: root.alertsCount > 0 ? alertsRow.implicitWidth + 14 : 32
-                radius: root.alertsCount > 0 ? height / 2 : width / 2
+                implicitHeight: 36
+                Layout.fillWidth: true
+                Layout.minimumWidth: alertsRow.implicitWidth + 20
+                radius: Styling.radius(2)
                 variant: alertsMouse.containsMouse ? "focus" : "internalbg"
                 scale: alertsMouse.pressed ? 0.92 : 1.0
 
@@ -278,13 +299,18 @@ Item {
                     anchors.centerIn: parent
                     spacing: 6
 
-                    Text {
+                    StyledText {
                         renderType: Text.NativeRendering
                         font.hintingPreference: Font.PreferFullHinting
                         text: Notifications.silent ? Icons.bellZ : Icons.bell
                         font.family: Icons.font
                         font.pixelSize: 15
                         color: Notifications.silent ? Colors.primary : Colors.overBackground
+                    }
+
+                    StyledText {
+                        text: "Alerts"
+                        font.pixelSize: Styling.fontSize(-1)
                     }
 
                     StyledRect {
@@ -294,12 +320,12 @@ Item {
                         radius: 8
                         variant: "primary"
 
-                        Text {
+                        StyledText {
                             id: alertBadgeText
                             anchors.centerIn: parent
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
-                            text: String(root.alertsCount)
+                            text: root.alertsCount > 99 ? "99+" : String(root.alertsCount)
                             font.family: Config.theme.monoFont
                             font.pixelSize: Styling.fontSize(-4)
                             font.bold: true
@@ -310,6 +336,7 @@ Item {
 
                 MouseArea {
                     id: alertsMouse
+                    objectName: "dashboardAlerts"
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
@@ -319,9 +346,10 @@ Item {
 
             // Settings button
             StyledRect {
-                implicitHeight: 32
-                implicitWidth: 32
-                radius: width / 2
+                implicitHeight: 36
+                Layout.fillWidth: true
+                Layout.minimumWidth: settingsLabel.implicitWidth + 44
+                radius: Styling.radius(2)
                 variant: settingsMouse.containsMouse ? "focus" : "internalbg"
                 scale: settingsMouse.pressed ? 0.92 : 1.0
 
@@ -332,8 +360,10 @@ Item {
                     }
                 }
 
-                Text {
-                    anchors.centerIn: parent
+                StyledText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
                     text: Icons.gear
@@ -342,8 +372,18 @@ Item {
                     color: Colors.overBackground
                 }
 
+                StyledText {
+                    id: settingsLabel
+                    anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: 10
+                    text: "Settings"
+                    font.pixelSize: Styling.fontSize(-1)
+                    color: Colors.overBackground
+                }
+
                 MouseArea {
                     id: settingsMouse
+                    objectName: "dashboardSettings"
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
@@ -356,9 +396,10 @@ Item {
 
             // Power Menu trigger button
             StyledRect {
-                implicitHeight: 32
-                implicitWidth: 32
-                radius: width / 2
+                implicitHeight: 36
+                Layout.fillWidth: true
+                Layout.minimumWidth: powerLabel.implicitWidth + 44
+                radius: Styling.radius(2)
                 variant: powerMouse.containsMouse ? "error" : "internalbg"
                 scale: powerMouse.pressed ? 0.92 : 1.0
 
@@ -369,8 +410,10 @@ Item {
                     }
                 }
 
-                Text {
-                    anchors.centerIn: parent
+                StyledText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
                     anchors.verticalCenterOffset: 2
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
@@ -380,8 +423,18 @@ Item {
                     color: powerMouse.containsMouse ? Colors.overError : Colors.red
                 }
 
+                StyledText {
+                    id: powerLabel
+                    anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: 10
+                    text: "Power"
+                    font.pixelSize: Styling.fontSize(-1)
+                    color: powerMouse.containsMouse ? Colors.overError : Colors.overBackground
+                }
+
                 MouseArea {
                     id: powerMouse
+                    objectName: "dashboardPower"
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
@@ -391,7 +444,7 @@ Item {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 1: 2 MAIN CAPSULES (Wi-Fi & Bluetooth)
+        // CONNECTIONS: WI-FI & BLUETOOTH
         // ═══════════════════════════════════════════════════════════════
         RowLayout {
             Layout.fillWidth: true
@@ -400,25 +453,27 @@ Item {
             // 1. Wi-Fi Capsule
             StyledRect {
                 id: wifiCapsule
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
                 Layout.fillWidth: true
-                Layout.preferredHeight: 52
-                radius: 26
+                Layout.preferredHeight: 64
+                radius: Styling.radius(3)
                 readonly property bool isHovered: wifiMouse.containsMouse || wifiIconMouse.containsMouse
                 variant: NetworkService.wifiEnabled ? (isHovered ? "primaryfocus" : "primary") : (isHovered ? "focus" : "internalbg")
                 scale: (wifiMouse.pressed || wifiIconMouse.pressed) ? 0.94 : 1.0
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: (wifiMouse.pressed || wifiIconMouse.pressed) ? 80 : 250
+                        duration: (wifiMouse.pressed || wifiIconMouse.pressed) ? Motion.press : Motion.feedback
                         easing.type: (wifiMouse.pressed || wifiIconMouse.pressed) ? Easing.OutQuad : Motion.enterCurve
                     }
                 }
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 16
-                    anchors.rightMargin: 16
-                    spacing: 12
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
 
                     // Both halves open the menu; right-click toggles Wi-Fi.
                     Item {
@@ -426,7 +481,7 @@ Item {
                         implicitHeight: 26
                         Layout.alignment: Qt.AlignVCenter
 
-                        Text {
+                        StyledText {
                             anchors.centerIn: parent
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
@@ -442,6 +497,7 @@ Item {
 
                         MouseArea {
                             id: wifiIconMouse
+                            objectName: "dashboardWifiIcon"
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -474,24 +530,36 @@ Item {
                     // Right: Text (click opens Wi-Fi panel)
                     Item {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.fillHeight: true
 
-                        Text {
+                        ColumnLayout {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            renderType: Text.NativeRendering
-                            font.hintingPreference: Font.PreferFullHinting
-                            text: root.wifiConnected ? root.wifiSsid : (NetworkService.wifiConnecting ? "Connecting..." : (NetworkService.wifiEnabled ? "Wi-Fi" : "Wi-Fi Off"))
-                            font.family: Config.theme.font
-                            font.pixelSize: Styling.fontSize(0)
-                            font.bold: true
-                            color: NetworkService.wifiEnabled ? Colors.overPrimary : Colors.overBackground
-                            elide: Text.ElideRight
+                            spacing: 3
+                            StyledText {
+                                text: "Wi-Fi"
+                                font.pixelSize: Styling.fontSize(-2)
+                                color: NetworkService.wifiEnabled ? Colors.overPrimary : Colors.overSurfaceVariant
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                renderType: Text.NativeRendering
+                                font.hintingPreference: Font.PreferFullHinting
+                                text: root.wifiConnected ? root.wifiSsid : (NetworkService.wifiConnecting ? "Connecting..." : (NetworkService.wifiEnabled ? "Wi-Fi" : "Wi-Fi Off"))
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-2)
+                                font.bold: true
+                                color: NetworkService.wifiEnabled ? Colors.overPrimary : Colors.overBackground
+                                elide: Text.ElideRight
+                            }
                         }
 
                         MouseArea {
                             id: wifiMouse
+                            objectName: "dashboardWifiMouse"
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -515,25 +583,27 @@ Item {
             // 2. Bluetooth Capsule
             StyledRect {
                 id: btCapsule
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
                 Layout.fillWidth: true
-                Layout.preferredHeight: 52
-                radius: 26
+                Layout.preferredHeight: 64
+                radius: Styling.radius(3)
                 readonly property bool isHovered: btMouse.containsMouse || btIconMouse.containsMouse
                 variant: BluetoothService.enabled ? (isHovered ? "primaryfocus" : "primary") : (isHovered ? "focus" : "internalbg")
                 scale: (btMouse.pressed || btIconMouse.pressed) ? 0.94 : 1.0
 
                 Behavior on scale {
                     NumberAnimation {
-                        duration: (btMouse.pressed || btIconMouse.pressed) ? 80 : 250
+                        duration: (btMouse.pressed || btIconMouse.pressed) ? Motion.press : Motion.feedback
                         easing.type: (btMouse.pressed || btIconMouse.pressed) ? Easing.OutQuad : Motion.enterCurve
                     }
                 }
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 16
-                    anchors.rightMargin: 16
-                    spacing: 12
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
 
                     // Both halves open the menu; right-click toggles Bluetooth.
                     Item {
@@ -541,7 +611,7 @@ Item {
                         implicitHeight: 26
                         Layout.alignment: Qt.AlignVCenter
 
-                        Text {
+                        StyledText {
                             anchors.centerIn: parent
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
@@ -553,6 +623,7 @@ Item {
 
                         MouseArea {
                             id: btIconMouse
+                            objectName: "dashboardBluetoothIcon"
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -585,24 +656,36 @@ Item {
                     // Right: Text (click opens Bluetooth panel)
                     Item {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         Layout.fillHeight: true
 
-                        Text {
+                        ColumnLayout {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            renderType: Text.NativeRendering
-                            font.hintingPreference: Font.PreferFullHinting
-                            text: root.btConnected ? root.btDeviceName : (BluetoothService.enabled ? "Bluetooth" : "Bluetooth Off")
-                            font.family: Config.theme.font
-                            font.pixelSize: Styling.fontSize(0)
-                            font.bold: true
-                            color: BluetoothService.enabled ? Colors.overPrimary : Colors.overBackground
-                            elide: Text.ElideRight
+                            spacing: 3
+                            StyledText {
+                                text: "Bluetooth"
+                                font.pixelSize: Styling.fontSize(-2)
+                                color: BluetoothService.enabled ? Colors.overPrimary : Colors.overSurfaceVariant
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                renderType: Text.NativeRendering
+                                font.hintingPreference: Font.PreferFullHinting
+                                text: root.btConnected ? root.btDeviceName : (BluetoothService.enabled ? "Bluetooth" : "Bluetooth Off")
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-2)
+                                font.bold: true
+                                color: BluetoothService.enabled ? Colors.overPrimary : Colors.overBackground
+                                elide: Text.ElideRight
+                            }
                         }
 
                         MouseArea {
                             id: btMouse
+                            objectName: "dashboardBluetoothMouse"
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -626,111 +709,401 @@ Item {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 2: 6 QUICK TILES (Sound, Mic, Battery, DND, Stats, Wallpapers)
+        // QUICK CONTROLS
         // ═══════════════════════════════════════════════════════════════
-        RowLayout {
+        GridLayout {
             id: quickTilesRow
             Layout.fillWidth: true
-            readonly property real tileButtonSize: 56
-            spacing: mainColumn.width > 0 ? Math.max(6, (mainColumn.width - (6 * tileButtonSize)) / 5) : 11
+            columns: 3
+            readonly property real tileButtonSize: Styling.fontSize(0) * 2.7
+            columnSpacing: 8
+            rowSpacing: 8
 
             // 1. Sound (Vol)
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                showArc: true
-                value: root.audioMuted ? 0 : root.audioVolume
-                arcColor: root.audioMuted ? Colors.outlineVariant : Colors.primary
-                icon: root.audioMuted ? Icons.speakerSlash : (root.audioVolume > 0.5 ? Icons.speakerHigh : (root.audioVolume > 0 ? Icons.speakerLow : Icons.speakerSlash))
-                iconColor: root.audioMuted ? Colors.error : Colors.overBackground
-                tooltipText: (root.audioMuted ? "Muted " : "Volume ") + Math.round(root.audioVolume * 100) + "%"
-                tooltipDescription: "Click for sound · Right-click to mute"
-                onClicked: (mouse) => {
-                    if (mouse.button === Qt.RightButton) {
-                        Audio.toggleMute();
-                    } else {
-                        root.openSound();
+            StyledRect {
+                objectName: "dashboardShortcut0"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent0.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse0.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent0
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl0
+                        objectName: "dashboardSoundGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        showArc: true
+                        value: root.audioMuted ? 0 : root.audioVolume
+                        arcColor: root.audioMuted ? Colors.outlineVariant : Colors.primary
+                        icon: root.audioMuted ? Icons.speakerSlash : (root.audioVolume > 0.5 ? Icons.speakerHigh : (root.audioVolume > 0 ? Icons.speakerLow : Icons.speakerSlash))
+                        iconColor: root.audioMuted ? Colors.error : Colors.overBackground
+                        tooltipText: (root.audioMuted ? "Muted " : "Volume ") + Math.round(root.audioVolume * 100) + "%"
+                        tooltipDescription: "Click for sound · Right-click to mute"
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton) {
+                                Audio.toggleMute();
+                            } else {
+                                root.openSound();
+                            }
+                        }
+                        onWheelScrolled: (delta) => {
+                            if (delta > 0) Audio.incrementVolume();
+                            else Audio.decrementVolume();
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Sound"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: root.audioMuted ? "Muted" : Math.round(root.audioVolume * 100) + "%"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
                     }
                 }
-                onWheelScrolled: (delta) => {
-                    if (delta > 0) Audio.incrementVolume();
-                    else Audio.decrementVolume();
+
+                MouseArea {
+                    id: shortcutMouse0
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl0.clicked(mouse)
+                    onWheel: wheel => shortcutControl0.wheelScrolled(wheel.angleDelta.y)
                 }
             }
 
             // 2. Microphone
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                readonly property bool micMuted: Audio.source?.audio?.muted ?? false
-                readonly property real micVol: Audio.source?.audio?.volume ?? 0.0
-                showArc: true
-                value: micMuted ? 0 : micVol
-                arcColor: micMuted ? Colors.outlineVariant : Colors.primary
-                icon: micMuted ? Icons.micSlash : Icons.mic
-                iconColor: micMuted ? Colors.error : Colors.overBackground
-                tooltipText: (micMuted ? "Mic Muted " : "Mic ") + Math.round(micVol * 100) + "%"
-                tooltipDescription: "Click for microphone · Right-click to mute"
-                onClicked: (mouse) => {
-                    if (mouse.button === Qt.RightButton) {
-                        Audio.toggleMicMute();
-                    } else {
-                        root.openMic();
+            StyledRect {
+                objectName: "dashboardShortcut1"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent1.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse1.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent1
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl1
+                        objectName: "dashboardMicrophoneGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        readonly property bool micMuted: Audio.source?.audio?.muted ?? false
+                        readonly property real micVol: Audio.source?.audio?.volume ?? 0.0
+                        showArc: true
+                        value: micMuted ? 0 : micVol
+                        arcColor: micMuted ? Colors.outlineVariant : Colors.primary
+                        icon: micMuted ? Icons.micSlash : Icons.mic
+                        iconColor: micMuted ? Colors.error : Colors.overBackground
+                        tooltipText: (micMuted ? "Mic Muted " : "Mic ") + Math.round(micVol * 100) + "%"
+                        tooltipDescription: "Click for microphone · Right-click to mute"
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton) {
+                                Audio.toggleMicMute();
+                            } else {
+                                root.openMic();
+                            }
+                        }
+                        onWheelScrolled: (delta) => {
+                            if (delta > 0) Audio.setMicVolume(Math.min(1.0, micVol + 0.05));
+                            else Audio.setMicVolume(Math.max(0, micVol - 0.05));
+                        }
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Microphone"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: (Audio.source?.audio?.muted ?? false) ? "Muted" : "Ready"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
                     }
                 }
-                onWheelScrolled: (delta) => {
-                    if (delta > 0) Audio.setMicVolume(Math.min(1.0, micVol + 0.05));
-                    else Audio.setMicVolume(Math.max(0, micVol - 0.05));
+
+                MouseArea {
+                    id: shortcutMouse1
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl1.clicked(mouse)
+                    onWheel: wheel => shortcutControl1.wheelScrolled(wheel.angleDelta.y)
                 }
             }
 
             // 3. Battery
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                showArc: Battery.available
-                value: Battery.available ? (Battery.percentage / 100) : 0
-                arcColor: Battery.statusColor()
-                icon: Battery.isPluggedIn ? Icons.plug : Battery.getBatteryIcon()
-                iconColor: Battery.isPluggedIn ? Colors.primary : (Battery.percentage <= 20 ? Colors.error : Colors.overBackground)
-                tooltipText: Battery.available ? `${Battery.percentage}%${Battery.isPluggedIn ? " (Charging)" : ""}` : "No Battery"
-                onClicked: (mouse) => root.openBattery()
+            StyledRect {
+                objectName: "dashboardShortcut2"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent2.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse2.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent2
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl2
+                        objectName: "dashboardBatteryGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        showArc: Battery.available
+                        value: Battery.available ? (Battery.percentage / 100) : 0
+                        arcColor: Battery.statusColor()
+                        icon: Battery.isPluggedIn ? Icons.plug : Battery.getBatteryIcon()
+                        iconColor: Battery.isPluggedIn ? Colors.primary : (Battery.percentage <= 20 ? Colors.error : Colors.overBackground)
+                        tooltipText: Battery.available ? `${Battery.percentage}%${Battery.isPluggedIn ? " (Charging)" : ""}` : "No Battery"
+                        onClicked: (mouse) => root.openBattery()
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Battery"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: Battery.available ? Battery.percentage + "%" + (Battery.isPluggedIn ? " · Charging" : "") : "Unavailable"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
+                    }
+                }
+
+                MouseArea {
+                    id: shortcutMouse2
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl2.clicked(mouse)
+                    onWheel: wheel => shortcutControl2.wheelScrolled(wheel.angleDelta.y)
+                }
             }
 
             // 4. Do Not Disturb
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                active: Notifications.silent
-                icon: Notifications.silent ? Icons.bellSlash : Icons.bell
-                iconColor: Notifications.silent ? Colors.overPrimary : Colors.overBackground
-                tooltipText: Notifications.silent ? "Do Not Disturb: On" : "Do Not Disturb: Off"
-                tooltipDescription: "Click for notifications · Right-click to toggle Do Not Disturb"
-                onClicked: (mouse) => {
-                    if (mouse.button === Qt.RightButton) {
-                        Visibilities.closeActiveBarPopup();
-                        Notifications.toggleSilent();
-                    } else {
-                        root.openAlerts();
+            StyledRect {
+                objectName: "dashboardShortcut3"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent3.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse3.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent3
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl3
+                        objectName: "dashboardDoNotDisturbGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        active: Notifications.silent
+                        icon: Notifications.silent ? Icons.bellSlash : Icons.bell
+                        iconColor: Notifications.silent ? Colors.overPrimary : Colors.overBackground
+                        tooltipText: Notifications.silent ? "Do Not Disturb: On" : "Do Not Disturb: Off"
+                        tooltipDescription: "Click for notifications · Right-click to toggle Do Not Disturb"
+                        onClicked: (mouse) => {
+                            if (mouse.button === Qt.RightButton) {
+                                Visibilities.closeActiveBarPopup();
+                                Notifications.toggleSilent();
+                            } else {
+                                root.openAlerts();
+                            }
+                        }
                     }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Quiet mode"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: Notifications.silent ? "On" : "Off"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
+                    }
+                }
+
+                MouseArea {
+                    id: shortcutMouse3
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl3.clicked(mouse)
+                    onWheel: wheel => shortcutControl3.wheelScrolled(wheel.angleDelta.y)
                 }
             }
 
             // 5. Sysmonitor / Stats
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                icon: Icons.cpu
-                tooltipText: "System Monitor"
-                onClicked: (mouse) => root.openStats()
+            StyledRect {
+                objectName: "dashboardShortcut4"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent4.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse4.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent4
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl4
+                        objectName: "dashboardSystemGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        icon: Icons.cpu
+                        tooltipText: "System Monitor"
+                        onClicked: (mouse) => root.openStats()
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "System"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Performance"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
+                    }
+                }
+
+                MouseArea {
+                    id: shortcutMouse4
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl4.clicked(mouse)
+                    onWheel: wheel => shortcutControl4.wheelScrolled(wheel.angleDelta.y)
+                }
             }
 
             // 6. Wallpapers
-            IslandGaugeButton {
-                buttonSize: quickTilesRow.tileButtonSize
-                icon: Icons.image
-                tooltipText: "Wallpapers"
-                onClicked: (mouse) => root.openWallpapers()
+            StyledRect {
+                objectName: "dashboardShortcut5"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 1
+                implicitHeight: tileContent5.implicitHeight + 16
+                radius: Styling.radius(3)
+                variant: shortcutMouse5.containsMouse ? "focus" : "internalbg"
+
+                ColumnLayout {
+                    id: tileContent5
+                    z: 1
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 4
+                    IslandGaugeButton {
+                        id: shortcutControl5
+                        objectName: "dashboardWallpapersGauge"
+                        Layout.alignment: Qt.AlignHCenter
+                        buttonSize: quickTilesRow.tileButtonSize
+                        icon: Icons.image
+                        tooltipText: "Wallpapers"
+                        onClicked: (mouse) => root.openWallpapers()
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Wallpapers"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-2)
+                        color: Colors.overBackground
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Appearance"
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.overSurfaceVariant
+                    }
+                }
+
+                MouseArea {
+                    id: shortcutMouse5
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => shortcutControl5.clicked(mouse)
+                    onWheel: wheel => shortcutControl5.wheelScrolled(wheel.angleDelta.y)
+                }
             }
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 3: BRIGHTNESS & NIGHT LIGHT SECTION
+        // DISPLAY: BRIGHTNESS & NIGHT LIGHT
         // ═══════════════════════════════════════════════════════════════
         StyledRect {
             Layout.fillWidth: true
@@ -755,6 +1128,7 @@ Item {
                 // Brightness slider
                 StyledSlider {
                     id: brightSlider
+                    objectName: "dashboardBrightness"
                     Layout.fillWidth: true
                     Layout.preferredHeight: 18
                     value: root.brightnessVal
@@ -766,7 +1140,7 @@ Item {
                 }
 
                 // Brightness percentage
-                Text {
+                StyledText {
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
                     Layout.preferredWidth: 38
@@ -799,7 +1173,7 @@ Item {
                         anchors.centerIn: parent
                         spacing: 5
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             text: Icons.moon
@@ -808,7 +1182,7 @@ Item {
                             color: NightLightService.active ? Colors.overPrimary : Colors.overBackground
                         }
 
-                        Text {
+                        StyledText {
                             renderType: Text.NativeRendering
                             font.hintingPreference: Font.PreferFullHinting
                             Layout.preferredWidth: 38
@@ -825,6 +1199,7 @@ Item {
 
                     MouseArea {
                         id: nlMouse
+                        objectName: "dashboardNightLight"
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -846,16 +1221,17 @@ Item {
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 4: MEDIA PLAYER CARD (Wallpaper bg + circular photo + waveform)
+        // MEDIA PLAYER
         // ═══════════════════════════════════════════════════════════════
         IslandMediaCard {
+            objectName: "dashboardMedia"
             Layout.fillWidth: true
-            Layout.preferredHeight: 114
+            Layout.preferredHeight: 88
             onExpandRequested: root.openMedia()
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // ROW 5: INTEGRATED SYSTEM TRAY
+        // SYSTEM TRAY
         // ═══════════════════════════════════════════════════════════════
         StyledRect {
             Layout.fillWidth: true
@@ -869,13 +1245,12 @@ Item {
                 anchors.rightMargin: 12
                 spacing: 8
 
-                Text {
+                StyledText {
                     renderType: Text.NativeRendering
                     font.hintingPreference: Font.PreferFullHinting
-                    text: "TRAY"
-                    font.family: Config.theme.monoFont
+                    text: "Background apps"
+                    font.family: Config.theme.font
                     font.pixelSize: Styling.fontSize(-2)
-                    font.bold: true
                     color: Colors.overSurfaceVariant
                 }
 

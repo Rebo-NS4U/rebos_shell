@@ -205,10 +205,11 @@ Singleton {
         onTriggered: root.performUpdate()
     }
 
-    // Periodic sync timer to ensure bar data never stays stale
+    // Events keep connection changes immediate. Poll faster while controls are
+    // open or if the monitor is unavailable; idle checks only refresh signal data.
     Timer {
         id: periodicTimer
-        interval: 2500
+        interval: !subscriber.running || GlobalStates.dashboardOpen || root.wifiScanning || root.isUpdating ? 2500 : 15000
         running: !SuspendManager.isSuspending
         repeat: true
         onTriggered: root.update()
@@ -243,7 +244,7 @@ Singleton {
     // Unified single-process network status and scan results reader
     Process {
         id: checkNetworkProcess
-        command: ["bash", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f TYPE,STATE,CONNECTION d status; echo '---'; nmcli -t -f CONNECTIVITY g; echo '---'; nmcli -g ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY d w || true"]
+        command: ["bash", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f TYPE,STATE,CONNECTION d status; echo '---'; nmcli -t -f CONNECTIVITY g; echo '---'; nmcli -g ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY d w list --rescan no || true"]
         running: false
         property string buffer: ""
         environment: ({

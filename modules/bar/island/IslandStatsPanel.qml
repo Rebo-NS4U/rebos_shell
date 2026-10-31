@@ -100,6 +100,7 @@ Item {
 
         MetricAction {
             Layout.fillWidth: true
+            visible: SystemResources.detailMetric !== "window"
             text: SystemResources.pickingWindow ? "Selecting window…" : "Pick window on screen"
             enabled: !SystemResources.pickingWindow && !SystemResources.windowActionBusy
             onClicked: SystemResources.pickWindow()

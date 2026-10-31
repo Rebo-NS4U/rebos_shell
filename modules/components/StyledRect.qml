@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Window
 import Quickshell.Widgets
 import qs.config
 import qs.modules.theme
@@ -59,7 +60,11 @@ ClippingRectangle {
     readonly property bool usesDitherGrid: (styleOverride || Styling.shellStyle) === "dithered"
         && Config.theme.ditherStrength > 0
     readonly property real ditherCellSize: Styling.ditherCellSize
+    // Regular shell windows share the panels' plain outline. Popup surfaces keep
+    // their decorative edges; explicit control/focus borders still take priority.
+    readonly property bool plainWindowOutline: root.Window.window?.title === "rebos_shell Settings"
     readonly property bool ditheredOutline: usesDitherGrid
+        && !plainWindowOutline
         && enableBorder && border.width > 0 && border.color.a > 0
 
     // Check if gradient is actually a single color (optimization: treat as solid)
@@ -235,8 +240,10 @@ ClippingRectangle {
     // look soft/hazy. Widget chrome shadows live on dedicated shadow items
     // instead of on text-bearing containers.
 
-    border.color: Config.resolveColor(borderData?.[0] ?? "transparent")
-    border.width: root.enableBorder ? (borderData?.[1] ?? 0) : 0
+    border.color: plainWindowOutline ? Qt.alpha(Colors.outline, 0.3)
+        : Config.resolveColor(borderData?.[0] ?? "transparent")
+    border.width: root.enableBorder
+        ? (plainWindowOutline && (borderData?.[1] ?? 0) > 0 ? 1 : (borderData?.[1] ?? 0)) : 0
 
     // Parent directly to the root: ClippingRectangle composites its native
     // border above its contentItem, so a normal child cannot replace that line.

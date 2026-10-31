@@ -38,6 +38,29 @@ class WindowRulesTests(unittest.TestCase):
         self.assertEqual(len(removed["rules"]), 1)
         self.assertEqual((self.root / "niri/config.kdl").read_text(), self.original)
 
+    def test_global_rounding_is_persistent_clipped_and_last(self):
+        created = self.save()
+        rounded = update({"op": "rounding", "radius": 16, "fingerprint": created["fingerprint"]}, self.root)
+        self.assertEqual(rounded["rounding"], 16)
+        self.assertEqual(len(rounded["rules"]), len(created["rules"]))
+        path = self.root / "niri/rebos_shell-window-rules.kdl"
+        text = path.read_text()
+        self.assertIn("clip-to-geometry true", text)
+        self.assertIn("popups { geometry-corner-radius 16.0; }", text)
+        self.assertTrue(text.rindex("geometry-corner-radius 16.0") > text.index("geometry-corner-radius 12.0"))
+        self.save(dict(self.rule, appId="another", radius="24"))
+        self.assertTrue(path.read_text().rindex("geometry-corner-radius 16.0") > path.read_text().index("geometry-corner-radius 24.0"))
+        current = listing(self.root)
+        update({"op": "rounding", "radius": 0, "fingerprint": current["fingerprint"]}, self.root)
+        self.assertEqual(listing(self.root)["rounding"], 0)
+        self.assertEqual((self.root / "niri/config.kdl").read_text(), self.original)
+
+    def test_global_rounding_rejects_invalid_values_without_writes(self):
+        for radius in [-1, 101, 1.5, True, "16", None]:
+            with self.assertRaisesRegex(ValueError, "whole number"):
+                update({"op": "rounding", "radius": radius, "fingerprint": listing(self.root)["fingerprint"]}, self.root)
+        self.assertFalse((self.root / "niri/rebos_shell-window-rules.kdl").exists())
+
     def test_literal_match_escapes_regex_characters(self):
         result = self.save(dict(self.rule, appId="org.example.App", title="A (test)"))
         body = result["rules"][0]["body"]

@@ -167,6 +167,7 @@ Item {
         spacing: 10
         MetricAction {
             width: parent.width
+            visible: SystemResources.detailMetric !== "window"
             text: SystemResources.pickingWindow ? "Selecting window…" : "Pick window on screen"
             enabled: !SystemResources.pickingWindow && !SystemResources.windowActionBusy
             onClicked: SystemResources.pickWindow()

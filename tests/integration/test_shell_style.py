@@ -38,7 +38,7 @@ import qs.modules.bar
 import qs.modules.theme
 import qs.modules.widgets.dashboard.controls
 ShellRoot {
- Window {visible: true; width: 640; height: 2400
+ Window {id: window; visible: true; width: 640; height: 2400
   ColumnLayout {
    anchors.fill: parent
    ShellStyleSettings {id: styles; Layout.fillWidth: true}
@@ -79,6 +79,20 @@ ShellRoot {
      if (style === "glass") {compare(settings.rectOpacity,0.86); compare(menu.rectOpacity,0.94);}
      if (style === "colorful") compare(settings.rectOpacity,0.82);
      if (style === "dithered") {
+      verify(settings.ditheredOutline);
+      window.title="rebos_shell Settings";
+      tryCompare(settings,"ditheredOutline",false);
+      for (const surface of [settings,menu,pane,bar]) {
+       compare(surface.plainWindowOutline,true);
+       compare(surface.border.width,1);
+       compare(surface.border.color.toString(),Qt.alpha(Colors.outline,0.3).toString());
+      }
+      compare(settings.usesDitherGrid,true);
+      verify(settings.border.width > 0);
+      window.title="rebos_shell Assistant";
+      tryCompare(settings,"ditheredOutline",true);
+      compare(settings.plainWindowOutline,false);
+      window.title="";
       compare(settings.gradientType,"halftone"); compare(settings.rectOpacity,1);
       compare(menu.gradientType,"halftone"); compare(pane.gradientType,"halftone");
       verify(findChild(styles,"dither-palette") !== null);

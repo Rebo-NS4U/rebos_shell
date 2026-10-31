@@ -308,7 +308,8 @@ Scope {
     Timer {
         id: bridgeCheckpointTimer
         interval: 250
-        running: root.bridgeAttached
+        // Idle sessions have no state to save and need no periodic wakeups.
+        running: root.bridgeAttached && root.bridgeDirty
         repeat: true
         onTriggered: {
             if (root.bridgeDirty)

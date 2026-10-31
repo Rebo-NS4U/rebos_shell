@@ -59,6 +59,9 @@ PanelWindow {
     readonly property alias barOuterMargin: barContent.baseOuterMargin
     readonly property alias totalBarHeight: barContent.totalBarHeight
     readonly property string barPosition: Config.bar?.position ?? "top"
+    readonly property bool edgeNavigationVisible: !GlobalStates.lockscreenVisible && !NiriService.overviewOpen
+        && !NiriService.fullscreenOutputs.includes(targetScreen.name)
+        && !needsFullScreenInput && !fileShelf.open && !FileShelf.dragging
 
 
     Component.onCompleted: {
@@ -99,6 +102,8 @@ PanelWindow {
         // Full-screen capture when any module/popup is open
         item: unifiedPanel.needsFullScreenInput ? fullScreenMask : null
         regions: [
+            Region { item: previousWindowTab.visible ? previousWindowTab : null },
+            Region { item: nextWindowTab.visible ? nextWindowTab : null },
             Region { item: fileShelf.handleHitbox },
             Region { item: fileShelf.shelfHitbox },
             Region {
@@ -132,6 +137,27 @@ PanelWindow {
     Item {
         id: visualContent
         anchors.fill: parent
+
+        EdgeWindowTab {
+            id: previousWindowTab
+            objectName: "previous-window-tab"
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            leftSide: true
+            visible: unifiedPanel.edgeNavigationVisible
+                && NiriService.adjacentColumnWindowId(unifiedPanel.targetScreen.name, true) >= 0
+            onActivated: NiriService.focusAdjacentColumn(unifiedPanel.targetScreen.name, true)
+        }
+
+        EdgeWindowTab {
+            id: nextWindowTab
+            objectName: "next-window-tab"
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: unifiedPanel.edgeNavigationVisible
+                && NiriService.adjacentColumnWindowId(unifiedPanel.targetScreen.name, false) >= 0
+            onActivated: NiriService.focusAdjacentColumn(unifiedPanel.targetScreen.name, false)
+        }
 
         MouseArea {
             id: backdropArea

@@ -454,6 +454,7 @@ Item {
 
                 Flickable {
                     id: sessionStrip
+                    Layout.topMargin: 6
                     Layout.fillWidth: true
                     Layout.preferredHeight: visible ? 38 : 0
                     Layout.leftMargin: 12

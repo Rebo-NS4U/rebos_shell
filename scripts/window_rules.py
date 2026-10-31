@@ -15,6 +15,7 @@ import uuid
 from list_keybindings import collect, token_matches
 
 MARKER = "// rebos_shell-rule: "
+ROUNDING_ID = "global-window-rounding"
 
 
 def fingerprint(text):
@@ -62,6 +63,8 @@ def render_rule(rule):
                 lines.append("    default-column-width { proportion " + str(number / 100) + "; }")
             else:
                 lines.append("    " + key + " " + str(number))
+    if rule.get("id") == ROUNDING_ID:
+        lines.extend(["    clip-to-geometry true", "    popups { geometry-corner-radius " + str(float(radius)) + "; }"])
     if len(lines) == 2:
         raise ValueError("Choose at least one window behavior or appearance setting.")
     return "\n".join(lines + ["}"])
@@ -82,7 +85,7 @@ def read_managed(path):
 
 def serialize(rules):
     pieces = ["// Managed by rebos_shell Settings. Edit these rules in Settings → Window Rules.\n"]
-    for rule in rules:
+    for rule in sorted(rules, key=lambda rule: rule.get("id") == ROUNDING_ID):
         pieces.append(MARKER + json.dumps(rule, ensure_ascii=False, sort_keys=True))
         if rule.get("enabled", True):
             pieces.append(render_rule(rule))
@@ -119,7 +122,8 @@ def listing(config_dir):
     path = config_dir / "niri/rebos_shell-window-rules.kdl"
     text, managed = read_managed(path)
     return {"ok": True, "fingerprint": fingerprint(text), "path": str(path),
-            "rules": [dict(rule, managed=True, body=render_rule(rule)) for rule in managed]
+            "rounding": next((int(rule["radius"]) for rule in managed if rule.get("id") == ROUNDING_ID), 16),
+            "rules": [dict(rule, managed=True, body=render_rule(rule)) for rule in managed if rule.get("id") != ROUNDING_ID]
                 + existing_rules(config_dir, path)}
 
 
@@ -175,7 +179,13 @@ def update(request, config_dir):
     if request.get("fingerprint") != fingerprint(original):
         raise ValueError("The rules changed. Refresh the list before saving.")
     operation = request.get("op")
-    if operation == "delete":
+    if operation == "rounding":
+        radius = request.get("radius")
+        if type(radius) is not int or not 0 <= radius <= 100:
+            raise ValueError("Corner radius must be a whole number between 0 and 100.")
+        rule = {"id": ROUNDING_ID, "name": "All window corners", "appId": ".*", "regex": True, "radius": radius}
+        rules = [old for old in rules if old.get("id") != ROUNDING_ID] + [rule]
+    elif operation == "delete":
         rule_id = request.get("id")
         if not any(rule["id"] == rule_id for rule in rules):
             raise ValueError("This rule no longer exists. Refresh the list.")
@@ -201,7 +211,7 @@ def update(request, config_dir):
     candidate = serialize(rules)
     write_validated(path, original, candidate)
     result = listing(config_dir)
-    result["message"] = "Rule saved. Opening behavior applies the next time a matching window opens." if operation == "save" else "Rule deleted."
+    result["message"] = "Window rounding applied." if operation == "rounding" else "Rule saved. Opening behavior applies the next time a matching window opens." if operation == "save" else "Rule deleted."
     return result
 
 

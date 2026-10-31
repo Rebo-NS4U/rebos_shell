@@ -48,6 +48,8 @@ PanelWindow {
     property var torbox: ({connected: false, text: "TorBox is not connected."})
     property bool torboxBusy: false
     property bool torboxManual: false
+    property var youtubeRecommendations: []
+    property list<string> mediaGenres: []
     property var filterOptions: []
     property var appliedFilters: ({})
     property var draftFilters: ({})
@@ -58,14 +60,29 @@ PanelWindow {
     property string screenName: ""
 
     screen: Quickshell.screens.find(s => s.name === root.screenName) ?? Quickshell.screens[0]
-    visible: opened && !GlobalStates.lockscreenVisible
+    readonly property bool active: opened && !GlobalStates.lockscreenVisible
+    property real slideProgress: active ? 1 : 0
+    readonly property bool presented: active || slideProgress > 0 || slideAnimation.running
+    Behavior on slideProgress {
+        enabled: Motion.enabled && !GlobalStates.lockscreenVisible
+        NumberAnimation {
+            id: slideAnimation
+            duration: root.active ? Motion.enter : Motion.exit
+            easing.type: Easing.InOutCubic
+        }
+    }
+    visible: presented && !GlobalStates.lockscreenVisible
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "rebos_shell-anime"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    BackgroundEffect.blurRegion: Region { item: card; radius: card.radius }
+    BackgroundEffect.blurRegion: Region {
+        Region { item: card; radius: card.radius }
+        // Keep the mask nonempty when the sheet is fully off screen.
+        Region { x: -2; y: -2; width: 1; height: 1 }
+    }
 
     function toggle(): void {
         if (opened) { opened = false; return; }
@@ -125,6 +142,20 @@ PanelWindow {
         categoryPicker.currentIndex = Math.max(0, (mediaKind === "anime" ? ["most-popular", "recently-updated", "top-rated", "history"] : mediaKind === "youtube" ? ["most-popular", "history"] : ["most-popular", "featured", "recently-updated", "history"]).indexOf(category));
         Qt.callLater(() => search.focusInput());
     }
+    function chooseRecommendation(value: string): void {
+        category = value;
+        query = "";
+        search.text = "";
+        categoryPicker.currentIndex = 0;
+        load(false);
+    }
+    function browseCredit(prefix: string, value: string): void {
+        pageView = "browse";
+        query = prefix + ": " + value;
+        search.text = query;
+        load(false);
+        Qt.callLater(() => search.focusInput());
+    }
     function episodeLabel(value: string): string {
         return details.episodeLabels?.[value] ?? (mediaKind === "movies" ? "Movie" : mediaKind === "youtube" ? "Video" : "Episode " + value);
     }
@@ -179,7 +210,13 @@ PanelWindow {
         detailLoading = true;
         detailRequest++;
         send({action: "details", request: detailRequest, show: selectedShow});
+        Qt.callLater(() => { if (detailScroll.contentItem) detailScroll.contentItem.contentY = 0; });
         card.forceActiveFocus();
+    }
+    function playCard(index: int): void {
+        if (!ready || index < 0 || index >= shows.count) return;
+        grid.currentIndex = index;
+        send({action: "quick_play", show: Object.assign({}, shows.get(index), {kind: mediaKind})});
     }
     function updateSetting(key: string, value): void {
         const updated = Object.assign({}, settings);
@@ -197,6 +234,8 @@ PanelWindow {
                 torbox = data.torbox ?? ({connected: false, text: "TorBox is not connected."});
                 torboxBusy = false;
                 filterOptions = data.filterOptions ?? [];
+                mediaGenres = data.mediaGenres ?? [];
+                youtubeRecommendations = data.youtubeRecommendations ?? [];
                 if (shows.count === 0) load(false);
             } else if (data.event === "catalogue" && data.request === requestId) {
                 const existing = new Set();
@@ -208,7 +247,7 @@ PanelWindow {
                 }
                 hasMore = !Array.isArray(data.data) ? data.data.hasMore : added > 0 && (category !== "history" || query.length > 0 || filterCount > 0);
                 loading = false;
-                const countMessage = isYoutube && !query && category !== "history" ? "Search YouTube or paste a video, channel or playlist link" : (filterCount > 0 ? "Filtered · " : "") + shows.count + (hasMore ? " results · Scroll for more" : " results · End of results");
+                const countMessage = (isYoutube && !query && category !== "history" ? (youtubeRecommendations.find(row => row.id === category)?.title ?? "Popular") + " recommendations · " : filterCount > 0 ? "Filtered · " : "") + shows.count + (hasMore ? " results · Scroll for more" : " results · End of results");
                 message = (mediaKind === "movies" || mediaKind === "tv" ? "English audio · No CAM · HTTPS only · " : "") + countMessage;
                 if (grid.currentIndex < 0 && shows.count) grid.currentIndex = 0;
             } else if (data.event === "availability") {
@@ -234,7 +273,7 @@ PanelWindow {
                 episodes = data.data.episodes;
                 selectedEpisode = data.data.resumeIndex;
                 detailLoading = false;
-                if (pageView === "details") Qt.callLater(() => mediaKind === "movies" ? playSelection.forceActiveFocus() : episodeGrid.forceActiveFocus());
+                if (pageView === "details") Qt.callLater(() => mediaKind === "movies" || (isYoutube && episodes.length <= 1) ? playSelection.forceActiveFocus() : episodeGrid.forceActiveFocus());
             } else if (data.event === "season" && data.request === detailRequest) {
                 details = Object.assign({}, details, data.data);
                 selectedShow = Object.assign({}, selectedShow, data.data.show ?? ({}), {episodeLabels: data.data.episodeLabels ?? ({})});
@@ -292,9 +331,13 @@ PanelWindow {
         function select(index: int): void {
             if (index >= 0 && index < shows.count) root.selectShow(shows.get(index));
         }
+        function quickPlay(index: int): void { root.playCard(index); }
         function scrollToEnd(): void { grid.positionViewAtEnd(); root.loadNearBottom(); }
         function media(kind: string): void { if (["anime", "movies", "tv", "youtube"].indexOf(kind) >= 0) root.switchMedia(kind); }
         function searchQuery(value: string): void { search.text = value; root.query = value.trim(); root.load(false); }
+        function recommendation(value: string): void {
+            if (root.isYoutube && root.youtubeRecommendations.some(row => row.id === value)) root.chooseRecommendation(value);
+        }
         function season(index: int): void { root.chooseSeason(index); }
         function play(index: int): void {
             if (index >= 0 && index < root.episodes.length) root.send({action: "play", show: root.selectedShow, episodes: root.episodes, index: index});
@@ -304,9 +347,11 @@ PanelWindow {
         function applyFilters(): void { root.applyFilters(); }
         function settings(): void { root.previousPage = root.pageView; root.pageView = "settings"; card.forceActiveFocus(); }
         function status(): string {
-            return JSON.stringify({open: root.opened, ready: root.ready, view: root.pageView,
+            return JSON.stringify({open: root.opened, presented: root.presented, slideProgress: root.slideProgress,
+                sheetY: card.y, sheetHeight: card.height, screenHeight: root.height,
+                ready: root.ready, view: root.pageView,
                 searchText: search.text, searchFocused: search.inputActiveFocus, cardFocused: card.activeFocus, kind: root.mediaKind, category: root.category, hasMore: root.hasMore, title: root.selectedShow.title ?? "", seasonCount: root.details.seasons?.length ?? 0, shows: shows.count, loading: root.loading, detailLoading: root.detailLoading,
-                episodes: root.episodes.length, metadata: root.details.metadata?.length ?? 0,
+                cast: root.details.cast ?? [], directors: root.details.directors ?? [], genres: root.details.genres ?? [], recommendationGroups: root.youtubeRecommendations.length, episodes: root.episodes.length, metadata: root.details.metadata?.length ?? 0,
                 descriptionLength: root.details.description?.length ?? 0, filters: root.appliedFilters,
                 filterFields: root.filterOptions.length, page: root.cataloguePage, message: root.message,
                 liveSubtitles: root.settings.live_subtitles ?? true, captions: root.captionStatus,
@@ -334,8 +379,11 @@ PanelWindow {
         id: control
         property bool selected: false
         property bool glowing: false
-        padding: root.unit * 0.65
+        padding: root.unit * 0.75
         hoverEnabled: true
+        opacity: enabled ? 1 : 0.45
+        Keys.onReturnPressed: event => { if (enabled) clicked(); event.accepted = true; }
+        Keys.onEnterPressed: event => { if (enabled) clicked(); event.accepted = true; }
         contentItem: StyledText {
             text: control.text
             color: control.selected ? Colors.overPrimary : Colors.overSurface
@@ -344,9 +392,8 @@ PanelWindow {
             elide: Text.ElideRight
         }
         background: StyledRect {
-            variant: control.selected ? "primary" : control.hovered ? "focus" : "common"
+            variant: control.selected ? "primary" : control.hovered || control.activeFocus ? "focus" : "common"
             radius: Styling.radius(8)
-            opacity: control.enabled ? 1 : 0.45
             layer.enabled: control.glowing
             layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -365,9 +412,11 @@ PanelWindow {
         id: card
         variant: "popup"
         radius: Styling.radius(20)
-        anchors.centerIn: parent
-        width: Math.min(root.width - root.unit * 5, root.unit * 78)
-        height: Math.min(root.height - root.unit * 8, root.unit * 53)
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(root.width - root.unit * 2, root.unit * 90)
+        height: Math.min(root.height - root.unit * 4, root.unit * 53)
+        y: root.height - (height + root.unit) * root.slideProgress
+        clip: true
         focus: true
         Keys.onEscapePressed: event => { root.back(); event.accepted = true; }
         MouseArea { anchors.fill: parent; onClicked: card.forceActiveFocus() }
@@ -375,12 +424,19 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: root.unit * 1.5
             spacing: root.unit
+            StyledRect {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: root.unit * 3
+                Layout.preferredHeight: root.unit * 0.25
+                variant: "focus"
+                radius: height / 2
+            }
             RowLayout {
                 Layout.fillWidth: true
                 MenuButton { visible: root.pageView !== "browse"; text: "‹ Back"; onClicked: root.back() }
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.pageView === "details" ? (root.selectedShow.title ?? root.mediaName) : root.pageView === "settings" ? "Playback settings" : root.pageView === "filters" ? "Search filters" : "Media"
+                    text: root.pageView === "details" ? (root.selectedShow.title ?? root.mediaName) : root.pageView === "settings" ? "Playback settings" : root.pageView === "filters" ? "Search filters" : "Media Browser"
                     font.pixelSize: Styling.fontSize(6)
                     font.bold: true
                     elide: Text.ElideRight
@@ -424,13 +480,74 @@ PanelWindow {
                         onEscapePressed: root.back()
                         onDownPressed: { grid.forceActiveFocus(); if (grid.currentIndex < 0 && shows.count) grid.currentIndex = 0; }
                     }
+                    MenuCombo {
+                        visible: root.mediaKind === "movies" || root.mediaKind === "tv"
+                        model: ["Title", "Actor", "Genre"]
+                        currentIndex: search.text.toLowerCase().startsWith("actor:") ? 1 : search.text.toLowerCase().startsWith("genre:") ? 2 : 0
+                        onActivated: {
+                            const value = search.text.replace(/^(actor|genre|title):\s*/i, "");
+                            search.text = ["", "actor: ", "genre: "][currentIndex] + value;
+                            search.focusInput();
+                        }
+                    }
+                    MenuCombo {
+                        visible: (root.mediaKind === "movies" || root.mediaKind === "tv") && search.text.toLowerCase().startsWith("genre:")
+                        Layout.preferredWidth: root.unit * 13
+                        model: ["Choose genre"].concat(Array.from(root.mediaGenres))
+                        currentIndex: Math.max(0, root.mediaGenres.findIndex(genre => genre.toLowerCase() === search.text.replace(/^genre:\s*/i, "").trim().toLowerCase()) + 1)
+                        enabled: root.ready && root.mediaGenres.length > 0
+                        Accessible.name: "Movie or TV genre"
+                        popup.height: Math.min(popup.implicitHeight, card.height * 0.55)
+                        onActivated: {
+                            if (currentIndex === 0) return;
+                            search.text = "genre: " + currentText;
+                            root.query = search.text;
+                            root.load(false);
+                            search.focusInput();
+                        }
+                    }
                     MenuButton { text: "Search"; onClicked: { root.query = search.text.trim(); root.load(false); } }
                     MenuButton { visible: root.mediaKind === "anime"; text: root.filterCount > 0 ? "Filters (" + root.filterCount + ")" : "Filters"; selected: root.filterCount > 0; enabled: root.ready; onClicked: root.openFilters() }
                     MenuCombo {
                         id: categoryPicker
-                        model: root.mediaKind === "anime" ? ["Popular", "Recently updated", "Top rated", "History"] : root.isYoutube ? ["Search", "History"] : ["Popular", "Featured", "New releases", "History"]
+                        model: root.mediaKind === "anime" ? ["Popular", "Recently updated", "Top rated", "History"] : root.isYoutube ? ["Recommended", "History"] : ["Popular", "Featured", "New releases", "History"]
                         onActivated: { root.category = (root.mediaKind === "anime" ? ["most-popular", "recently-updated", "top-rated", "history"] : root.isYoutube ? ["most-popular", "history"] : ["most-popular", "featured", "recently-updated", "history"])[currentIndex]; search.text = ""; root.query = ""; root.appliedFilters = ({}); root.draftFilters = ({}); root.load(false); }
                     }
+                }
+                StyledText {
+                    visible: root.mediaKind === "movies" || root.mediaKind === "tv"
+                    Layout.fillWidth: true
+                    text: search.text.toLowerCase().startsWith("actor:")
+                        ? "Search catalogue cast, e.g. actor: Anne Hathaway. Load more checks further titles; cast coverage may be incomplete."
+                        : "Search a title, actor: Anne Hathaway, or genre: Comedy. Genres include Action, Drama, Horror, Romance and Sci-Fi."
+                    color: Colors.overSurfaceVariant
+                    wrapMode: Text.Wrap
+                }
+                GridLayout {
+                    visible: root.isYoutube
+                    Layout.fillWidth: true
+                    columns: width < root.unit * 55 ? 4 : 8
+                    columnSpacing: root.unit * 0.5
+                    rowSpacing: root.unit * 0.5
+                    Repeater {
+                        model: root.youtubeRecommendations
+                        delegate: MenuButton {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 0
+                            text: modelData.title
+                            selected: !root.query && root.category === modelData.id
+                            enabled: root.ready
+                            onClicked: root.chooseRecommendation(modelData.id)
+                        }
+                    }
+                }
+                StyledText {
+                    visible: root.isYoutube && !root.query && root.category !== "history"
+                    Layout.fillWidth: true
+                    text: (root.youtubeRecommendations.find(row => row.id === root.category)?.title ?? "Popular") + " recommendations · Public search suggestions, without sign-in or personalization. Search or paste a link for something specific."
+                    color: Colors.overSurfaceVariant
+                    wrapMode: Text.Wrap
                 }
                 GridView {
                     id: grid
@@ -445,8 +562,35 @@ PanelWindow {
                     onMovementEnded: root.loadNearBottom()
                     Keys.onReturnPressed: { if (currentIndex >= 0) root.selectShow(shows.get(currentIndex)); }
                     Keys.onEnterPressed: { if (currentIndex >= 0) root.selectShow(shows.get(currentIndex)); }
+                    Keys.onPressed: event => {
+                        if (event.key === Qt.Key_P && event.modifiers === Qt.NoModifier) {
+                            root.playCard(currentIndex);
+                            event.accepted = true;
+                        }
+                    }
                     Keys.onEscapePressed: root.back()
                     ScrollBar.vertical: ScrollBar {}
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.8
+                        visible: shows.count === 0 && !root.loading
+                        spacing: root.unit
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: "No results"
+                            font.pixelSize: Styling.fontSize(4)
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.Wrap
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.message
+                            color: Colors.overSurfaceVariant
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.Wrap
+                        }
+                    }
                     delegate: Item {
                         id: poster
                         required property int index
@@ -469,6 +613,7 @@ PanelWindow {
                                     source: poster.image
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
+                                    Layout.preferredHeight: root.isYoutube ? width * 0.5625 : -1
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     sourceSize.width: root.unit * (root.isYoutube ? 32 : 18)
@@ -508,6 +653,18 @@ PanelWindow {
                                 onPositionChanged: { if (containsMouse) grid.currentIndex = poster.index; }
                                 onClicked: { grid.currentIndex = poster.index; root.selectShow(shows.get(poster.index)); }
                             }
+                            MenuButton {
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: root.unit * 0.65
+                                text: "▶ Play"
+                                selected: true
+                                enabled: root.ready
+                                Accessible.name: "Play or resume " + poster.title
+                                ToolTip.visible: hovered
+                                ToolTip.text: "Play or resume directly · P on a selected card"
+                                onClicked: root.playCard(poster.index)
+                            }
                         }
                     }
                 }
@@ -525,13 +682,15 @@ PanelWindow {
                 spacing: root.unit
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.fillHeight: root.mediaKind === "movies" || (root.isYoutube && root.episodes.length <= 1)
                     Layout.preferredHeight: card.height * 0.43
-                    Layout.maximumHeight: card.height * 0.48
+                    Layout.maximumHeight: card.height * (root.mediaKind === "movies" ? 0.78 : root.isYoutube && root.episodes.length <= 1 ? 0.7 : 0.48)
                     Layout.minimumHeight: 0
                     spacing: root.unit * 1.5
                     Image {
                         source: root.selectedShow.image ?? ""
-                        Layout.preferredWidth: root.unit * 14
+                        Layout.preferredWidth: root.unit * (root.isYoutube ? 26 : 14)
+                        Layout.maximumWidth: card.width * 0.42
                         Layout.fillHeight: true
                         fillMode: Image.PreserveAspectFit
                         asynchronous: true
@@ -540,6 +699,7 @@ PanelWindow {
                         }
                     }
                     ScrollView {
+                        id: detailScroll
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.minimumHeight: 0
@@ -548,9 +708,73 @@ PanelWindow {
                         ColumnLayout {
                             width: parent.width
                             spacing: root.unit
-                            StyledText { text: root.details.description || root.selectedShow.description || (root.detailLoading ? "Loading information…" : "No description available"); Layout.fillWidth: true; wrapMode: Text.Wrap }
+                            StyledText {
+                                text: root.details.title || root.selectedShow.title || ""
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                font.pixelSize: Styling.fontSize(5)
+                                font.bold: true
+                            }
+                            StyledText {
+                                visible: root.mediaKind === "movies" || root.mediaKind === "tv"
+                                text: [root.details.year, root.details.runtime, root.details.rating ? "IMDb " + root.details.rating + " / 10" : ""].filter(Boolean).join(" · ")
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                color: Colors.primary
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: root.unit * 0.5
+                                visible: (root.details.genres?.length ?? 0) > 0
+                                Repeater {
+                                    model: root.details.genres ?? []
+                                    delegate: MenuButton {
+                                        required property string modelData
+                                        text: modelData
+                                        width: Math.min(implicitWidth, parent.width)
+                                        Accessible.name: "Browse " + modelData + " titles"
+                                        onClicked: root.browseCredit("genre", modelData)
+                                    }
+                                }
+                            }
+                            StyledText { text: root.isYoutube ? "Description" : "Overview"; font.bold: true }
+                            StyledText {
+                                text: root.details.description || root.selectedShow.description || (root.detailLoading ? "Loading information…" : "No description available")
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                textFormat: Text.PlainText
+                            }
+                            StyledText { visible: (root.details.cast?.length ?? 0) > 0; text: "Cast · select an actor to explore"; font.bold: true }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: root.unit * 0.5
+                                visible: (root.details.cast?.length ?? 0) > 0
+                                Repeater {
+                                    model: root.details.cast ?? []
+                                    delegate: MenuButton {
+                                        required property string modelData
+                                        text: modelData
+                                        width: Math.min(implicitWidth, parent.width)
+                                        Accessible.name: "Find titles with " + modelData
+                                        onClicked: root.browseCredit("actor", modelData)
+                                    }
+                                }
+                            }
+                            StyledText {
+                                visible: (root.details.directors?.length ?? 0) > 0
+                                text: "Directed by " + (root.details.directors ?? []).join(", ")
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                            }
+                            StyledText {
+                                visible: !!root.details.country || !!root.details.released
+                                text: [root.details.country, root.details.released ? "Released " + root.details.released : ""].filter(Boolean).join(" · ")
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                color: Colors.overSurfaceVariant
+                            }
+                            StyledText { visible: root.mediaKind !== "movies" && root.mediaKind !== "tv"; text: (root.details.metadata ?? []).join("\n"); Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colors.overSurfaceVariant }
                             StyledText { visible: root.mediaKind === "movies" || root.mediaKind === "tv"; text: (root.selectedShow.availabilityLabel || "Availability not confirmed") + "\nCache checks do not verify playback. TV labels check the first episode; other episodes may differ."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colors.overSurfaceVariant }
-                            StyledText { text: (root.details.metadata ?? []).join("\n"); Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colors.overSurfaceVariant }
                         }
                     }
                 }
@@ -564,7 +788,7 @@ PanelWindow {
                         currentIndex: Math.max(0, (root.details.seasons ?? []).findIndex(season => season.id === root.details.seasonId))
                         onActivated: root.chooseSeason(currentIndex)
                     }
-                    StyledText { text: root.episodes.length + (root.isYoutube ? " videos" : root.mediaKind === "movies" ? " movie" : " episodes"); Layout.fillWidth: true; font.bold: true }
+                    StyledText { text: root.episodes.length + (root.isYoutube ? (root.episodes.length === 1 ? " video" : " videos") : root.mediaKind === "movies" ? " movie" : (root.episodes.length === 1 ? " episode" : " episodes")); Layout.fillWidth: true; font.bold: true }
                     MenuButton {
                         id: playSelection
                         text: root.episodes.length ? (root.mediaKind === "movies" || root.isYoutube ? "Play" : "Play · " + root.episodeLabel(root.episodes[root.selectedEpisode])) : root.detailLoading ? "Loading…" : "Unavailable"
@@ -578,7 +802,7 @@ PanelWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumHeight: root.mediaKind === "movies" ? 0 : root.unit * 7
-                    visible: root.mediaKind !== "movies"
+                    visible: root.mediaKind !== "movies" && (!root.isYoutube || root.episodes.length > 1)
                     clip: true
                     model: root.episodes
                     keyNavigationEnabled: true

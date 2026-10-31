@@ -126,6 +126,12 @@ ShellRoot {
      check(disk!==null,"Storage target");mouseClick(disk,disk.width/2,disk.height/2,Qt.LeftButton);wait(30);eq(SystemResources.detailMetric,"disk");clickText(view,"← All stats");checkOverview();
      const net=find(view,c=>c.text==="Test network" || c.text==="Ethernet / Local");check(net!==null);mouseClick(net,net.width/2,net.height/2,Qt.LeftButton);wait(30);eq(SystemResources.detailMetric,"network");clickText(view,"← All stats");checkOverview();
      clickText(view,"Pick window on screen");eq(SystemResources.detailMetric,"window");
+     check(!label(view,"Pick window on screen").visible,"Overview picker must be hidden in window details");
+     check(label(view,"Pick another window").visible,"Window details must retain its picker");
+     SystemResources.pickingWindow=true;wait(30);
+     check(!label(view,"Selecting window…").visible,"Overview picker must stay hidden while selecting");
+     check(!label(view,"Pick another window").enabled,"Cannot start a second selection while selecting");
+     SystemResources.pickingWindow=false;wait(30);
      SystemResources.windowInfo={window:{id:10,title:"A window",pid:55,app_id:"kitty",layout:{window_size:[800,600]}},process:{pid:55,ppid:1,start:100,name:"kitty",ram:1048576,exe:"/usr/bin/kitty"}};wait(40);
      check(find(view,c=>typeof c.text==="string" && c.text.includes("PPID: 1") && c.text.includes("800 × 600"))!==null,"Window info must render");
      clickText(view,"Close window");eq(SystemResources.lastAction,"close");

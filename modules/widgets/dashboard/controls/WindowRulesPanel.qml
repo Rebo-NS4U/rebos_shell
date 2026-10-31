@@ -15,6 +15,7 @@ Item {
     objectName: "window-rules-panel"
     property int maxContentWidth: 760
     property list<var> rules: []
+    property int rounding: 16
     property string fingerprint: ""
     property string filePath: ""
     property string message: ""
@@ -35,6 +36,8 @@ Item {
             message = result.ok ? (result.message ?? (previouslyFailed ? "" : message)) : result.error;
             if (result.ok) {
                 rules = result.rules;
+                rounding = result.rounding ?? 16;
+                roundingInput.text = String(rounding);
                 fingerprint = result.fingerprint;
                 filePath = result.path;
             }
@@ -137,6 +140,32 @@ Item {
             statusText: root.busy ? "Loading…" : root.rules.length + (root.rules.length === 1 ? " rule" : " rules")
             actions: [{icon: Icons.sync, tooltip: "Refresh rules", enabled: !root.busy,
                 onClicked: function () { reader.running = true; }}]
+        }
+        SettingsGroup {
+            title: "Window corners"
+            Caption { text: "Use the same corner radius for all app windows and popups. Changes apply immediately." }
+            RowLayout {
+                Layout.fillWidth: true
+                Caption { text: "Corner radius (px)" }
+                SettingsTextField {
+                    id: roundingInput
+                    objectName: "window-rounding-input"
+                    Layout.preferredWidth: 90
+                    text: String(root.rounding)
+                    enabled: !root.busy
+                    validator: IntValidator { bottom: 0; top: 100 }
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    Accessible.name: "Window corner radius in pixels"
+                    onAccepted: if (acceptableInput && !root.busy) root.submit({op: "rounding", radius: Number(text)})
+                }
+                Action {
+                    objectName: "window-rounding-apply"
+                    text: "Apply"
+                    enabled: !root.busy && roundingInput.acceptableInput
+                    onClicked: root.submit({op: "rounding", radius: Number(roundingInput.text)})
+                }
+            }
+            Caption { text: "0 gives square corners. Range: 0–100 px." }
         }
         SettingsGroup {
             title: "Find or add a rule"

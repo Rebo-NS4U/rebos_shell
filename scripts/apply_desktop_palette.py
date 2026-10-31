@@ -53,6 +53,36 @@ def update_ini(path, sections):
     return write(path, text)
 
 
+def apply_ladybird_palette(p, home):
+    """Ladybird's own pages currently resolve CSS system colors to fixed defaults."""
+    roles = {
+        'page': 'background', 'text': 'overSurface', 'body': 'overSurface',
+        'muted': 'outline', 'separator': 'outlineVariant',
+        'separator-soft': 'surfaceContainerHigh', 'control': 'surfaceContainer',
+        'control-hover': 'surfaceContainerHigh', 'control-pressed': 'surfaceBright',
+        'segment': 'surface', 'surface': 'surface', 'edge': 'outlineVariant',
+        'field-edge': 'outlineVariant', 'link': 'blue', 'checkbox-edge': 'outline',
+        'accent': 'primary', 'focus-edge': 'primary', 'badge-background': 'surfaceContainer',
+        'badge-text': 'primary', 'brand': 'primary', 'switch-off': 'outlineVariant',
+        'preview-tab': 'surface', 'preview-tab-inactive': 'surfaceContainer',
+        'preview-tab-current': 'surfaceContainerHigh', 'preview-field': 'surfaceContainerLowest',
+        'choice': 'primary', 'error': 'red', 'success': 'green',
+        'warning': 'yellow', 'warning-icon': 'yellow',
+    }
+    css = '/* Generated from the effective desktop palette. Reload open internal pages after changes. */\n:root:root {\n'
+    css += ''.join(f'    --{name}: {p[role]};\n' for name, role in roles.items())
+    # The built-in primary buttons have white labels in either appearance.
+    css += ('    --primary: color-mix(in srgb, var(--accent) 45%, black);\n'
+            '    --primary-hover: color-mix(in srgb, var(--accent) 40%, black);\n'
+            '    --primary-pressed: color-mix(in srgb, var(--accent) 35%, black);\n'
+            '    --focus-ring: color-mix(in srgb, var(--accent) 16%, transparent);\n'
+            '    --choice-fill: color-mix(in srgb, var(--accent) 16%, transparent);\n}\n')
+    for directory in (home / '.local/opt/ladybird/share/Lagom/ladybird',
+                      home / 'ladybird/Base/res/ladybird'):
+        if (directory / 'ladybird.css').is_file():
+            write(directory / 'rebos-shell.css', css)
+
+
 def apply(p, home):
     required = ['background', 'surface', 'surfaceBright', 'surfaceContainer',
                 'surfaceContainerHigh', 'surfaceContainerLowest', 'overSurface',
@@ -65,6 +95,7 @@ def apply(p, home):
     bg, fg, surface = p['background'], p['overSurface'], p['surface']
     accent, selected = p['primary'], p['overPrimary']
     muted = p['outline']
+    apply_ladybird_palette(p, home)
     # Fish reloads this small palette at each prompt; fzf reads its options
     # file on each search, so existing terminals pick up wallpaper changes.
     roles = {key: p.get(key, fg) for key in

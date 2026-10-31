@@ -39,7 +39,8 @@ class SettingsLayoutTest(unittest.TestCase):
             (scripts / 'display_settings.py').write_text('import json\nprint(json.dumps({"ok":True,"outputs":[]}))')
             shortcut = {'key': 'Super+Return', 'action': 'Open terminal', 'group': 'Desktop', 'editable': True}
             (scripts / 'list_keybindings.py').write_text('print(' + repr(json.dumps({'bindings': [shortcut], 'files': [], 'error': ''})) + ')')
-            (scripts / 'window_rules.py').write_text('import json\nprint(json.dumps({"ok":True,"rules":[],"fingerprint":"test","path":""}))')
+            (scripts / 'edit_keybinding.py').write_text('import json,sys\nfrom pathlib import Path\nr=json.loads(sys.stdin.readline())\nPath(__file__).with_name("saved-shortcut.json").write_text(json.dumps(r))\nprint(json.dumps({"ok":True,"message":"Shortcut saved. Niri applies it automatically."}))')
+            (scripts / 'window_rules.py').write_text('import json,sys\nr=json.loads(sys.stdin.readline()) if len(sys.argv)>1 else {}\nprint(json.dumps({"ok":True,"rules":[],"rounding":r.get("radius",16),"fingerprint":"test","path":""}))')
             binaries = root / 'bin'
             binaries.mkdir()
             outputs = {'TEST-1': {'make': 'Test', 'model': 'Monitor', 'current_mode': 0,
@@ -117,8 +118,43 @@ ShellRoot {
       const editor=findChild(loader.item,"shortcut-editor-input");
       verify(editor !== null); compare(editor.text,"Super+Return");
       loader.item.editingBinding=null;
+      wait(100);
+      const add=findChild(loader.item,"shortcut-add-open");
+      verify(add !== null,"Add button exists"); mouseClick(add,add.width/2,add.height/2);
+      compare(loader.item.addingBinding,true,"Add form opens");
+      const key=findChild(loader.item,"shortcut-add-key");
+      const command=findChild(loader.item,"shortcut-add-command");
+      const name=findChild(loader.item,"shortcut-add-name");
+      const save=findChild(loader.item,"shortcut-add-save");
+      verify(key.visible,"Shortcut field visible"); verify(command.visible,"Command field visible"); compare(save.enabled,false,"Empty form disabled");
+      key.text="Super+Shift+K"; command.text="kitty"; name.text="My terminal";
+      if (Quickshell.env("SETTINGS_PREVIEW_DIR")) {
+       wait(150);
+       page.grabToImage(function(result) {result.saveToFile(Quickshell.env("SETTINGS_PREVIEW_DIR")+"/add-keybind-form.png");});
+       wait(100);
+      }
+      compare(save.enabled,true,"Complete form enabled"); wait(100); mouseClick(save,save.width/2,save.height/2);
+      tryCompare(loader.item,"addingBinding",false,3000);
+      compare(loader.item.editFailed,false);
+      compare(key.text,""); compare(command.text,""); compare(name.text,"");
      }
      if (section === 8) {
+      tryCompare(loader.item,"busy",false,3000);
+      const radius=findChild(loader.item,"window-rounding-input");
+      const apply=findChild(loader.item,"window-rounding-apply");
+      verify(radius !== null); verify(apply !== null);
+      compare(radius.text,"16");
+      radius.forceActiveFocus(); keyClick(Qt.Key_A,Qt.ControlModifier); keyClick(Qt.Key_2); keyClick(Qt.Key_4); keyClick(Qt.Key_Return);
+      tryCompare(loader.item,"rounding",24,3000);
+      tryCompare(loader.item,"busy",false,3000);
+      radius.forceActiveFocus(); keyClick(Qt.Key_A,Qt.ControlModifier); keyClick(Qt.Key_0);
+      mouseClick(apply,apply.width/2,apply.height/2);
+      tryCompare(loader.item,"rounding",0,3000);
+      tryCompare(loader.item,"busy",false,3000);
+      radius.text="101"; compare(radius.acceptableInput,false); compare(apply.enabled,false);
+      radius.text="16"; mouseClick(apply,apply.width/2,apply.height/2);
+      tryCompare(loader.item,"rounding",16,3000);
+      tryCompare(loader.item,"busy",false,3000);
       loader.item.newRule();
       tryCompare(loader.item.editor,"visible",true);
       const field=findChild(loader.item.editor,"rule-app-input");
@@ -178,6 +214,8 @@ ShellRoot {
                                     capture_output=True, text=True, timeout=30)
             output = result.stdout + result.stderr
             self.assertEqual(result.returncode, 0, output)
+            self.assertEqual(json.loads((scripts / 'saved-shortcut.json').read_text()),
+                             {'operation': 'add', 'key': 'Super+Shift+K', 'command': 'kitty', 'name': 'My terminal'})
             self.assertIn('SETTINGS_LAYOUT_PASS', output)
             self.assertNotIn('FAIL!', output)
             self.assertNotIn('TypeError', output)

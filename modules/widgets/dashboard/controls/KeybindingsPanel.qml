@@ -22,11 +22,22 @@ Item {
     property string editMessage: ""
     property bool editFailed: false
     property string saveRequest: ""
+    property bool addingBinding: false
+
+    function addBinding(): void {
+        if (writer.running || !newShortcut.text.trim() || !newCommand.text.trim())
+            return;
+        saveRequest = JSON.stringify({operation: "add", key: newShortcut.text,
+            command: newCommand.text, name: newName.text});
+        editMessage = "";
+        writer.running = true;
+    }
 
     function beginEdit(binding): void {
         if (writer.running)
             return;
         editingBinding = binding;
+        addingBinding = false;
         editMessage = "";
         shortcutInput.text = binding.key;
         shortcutInput.forceActiveFocus();
@@ -67,6 +78,12 @@ Item {
                     root.editFailed = !result.ok;
                     root.editMessage = result.ok ? result.message : result.error;
                     if (result.ok) {
+                        if (root.addingBinding) {
+                            root.addingBinding = false;
+                            newShortcut.clear();
+                            newCommand.clear();
+                            newName.clear();
+                        }
                         root.editingBinding = null;
                         root.refresh();
                     }
@@ -153,7 +170,7 @@ Item {
         PanelTitlebar {
             Layout.fillWidth: true
             title: "Keyboard shortcuts"
-            description: "Find and change keyboard shortcuts."
+            description: "Add and change keyboard shortcuts."
             statusText: reader.running ? "Loading…" : root.bindings.length + (root.bindings.length === 1 ? " shortcut" : " shortcuts")
             actions: [{
                 icon: Icons.sync,
@@ -175,6 +192,73 @@ Item {
             placeholderText: "Find an action or shortcut…"
             onSearchTextChanged: text => root.searchQuery = text
         }
+        }
+
+        SettingsGroup {
+            title: "Add keybind"
+            description: "Launch an app or run a command with a desktop shortcut."
+            Action {
+                objectName: "shortcut-add-open"
+                visible: !root.addingBinding
+                text: "Add keybind"
+                enabled: !writer.running
+                onClicked: {
+                    root.editingBinding = null;
+                    root.editMessage = "";
+                    root.addingBinding = true;
+                    newShortcut.forceActiveFocus();
+                }
+            }
+            ColumnLayout {
+                visible: root.addingBinding
+                Layout.fillWidth: true
+                spacing: root.layoutSpacing / 2
+                RowLayout {
+                    Layout.fillWidth: true
+                    SettingsTextField {
+                        id: newShortcut
+                        objectName: "shortcut-add-key"
+                        Layout.fillWidth: true
+                        enabled: !writer.running
+                        placeholderText: "Shortcut, e.g. Super+Shift+K"
+                        onAccepted: newCommand.forceActiveFocus()
+                    }
+                    SettingsTextField {
+                        id: newName
+                        objectName: "shortcut-add-name"
+                        Layout.fillWidth: true
+                        enabled: !writer.running
+                        placeholderText: "Name (optional)"
+                        maximumLength: 100
+                    }
+                }
+                SettingsTextField {
+                    id: newCommand
+                    objectName: "shortcut-add-command"
+                    Layout.fillWidth: true
+                    enabled: !writer.running
+                    placeholderText: "Command, e.g. kitty or firefox"
+                    maximumLength: 4096
+                    onAccepted: root.addBinding()
+                }
+                Caption { text: "Use + between modifiers and the key, e.g. Super+Shift+K. The command runs when you press the shortcut." }
+                RowLayout {
+                    Action {
+                        objectName: "shortcut-add-save"
+                        text: writer.running ? "Saving…" : "Save keybind"
+                        enabled: !writer.running && !!newShortcut.text.trim() && !!newCommand.text.trim()
+                        onClicked: root.addBinding()
+                    }
+                    Action {
+                        text: "Cancel"
+                        enabled: !writer.running
+                        onClicked: {
+                            root.addingBinding = false;
+                            root.editMessage = "";
+                        }
+                    }
+                }
+            }
         }
 
         StyledRect {

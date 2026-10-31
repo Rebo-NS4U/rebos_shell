@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Change one shortcut token, preserving the action and surrounding config."""
+"""Add desktop shortcuts or change keys, preserving surrounding configuration."""
 import hashlib
 import json
 import os
@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-from list_keybindings import collect
+from list_keybindings import collect, token_matches
 
 
 MODIFIERS = {"ctrl": "Ctrl", "control": "Ctrl", "shift": "Shift",
@@ -75,19 +75,23 @@ def save(request, config_dir):
         raise ValueError("This configuration changed. Refresh the list before saving.")
     replacement = json.dumps(new_key) if original[binding["start"]] == '"' else new_key
     candidate = original[:binding["start"]] + replacement + original[binding["end"]:]
+    return persist(target, original, candidate, binding["group"], new_key)
+
+
+def persist(target, original, candidate, group, new_key):
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", dir=target.parent, prefix=".keybinding-check-", suffix=target.suffix, delete=False) as stream:
             stream.write(candidate)
             temporary = Path(stream.name)
-        if binding["group"] == "Desktop · Niri":
+        if group == "Desktop · Niri":
             checked = subprocess.run(["niri", "validate", "-c", str(temporary)], capture_output=True, timeout=15)
         else:
             # Kitty's own parser recognizes its key names and modifier aliases.
             code = "import sys; from kitty.options.utils import parse_shortcut; k=parse_shortcut(sys.stdin.readline().strip()); sys.exit(0 if k.key else 1)"
             checked = subprocess.run(["kitty", "+runpy", code], input=new_key + "\n", text=True, capture_output=True, timeout=15)
         if checked.returncode != 0:
-            raise ValueError("That key combination is not valid for " + ("Niri" if binding["group"] == "Desktop · Niri" else "Kitty") + ". Check the key name and try again.")
+            raise ValueError("That key combination is not valid for " + ("Niri" if group == "Desktop · Niri" else "Kitty") + ". Check the key name and try again.")
         if target.read_text() != original:
             raise ValueError("This configuration changed while saving. Refresh and try again.")
         with tempfile.NamedTemporaryFile(dir=target.parent, prefix="." + target.name + ".keybindings-backup-", delete=False) as backup:
@@ -97,7 +101,7 @@ def save(request, config_dir):
         os.replace(temporary, target)
         temporary = None
         message = "Shortcut saved. Niri applies it automatically."
-        if binding["group"] == "Terminal · Kitty":
+        if group == "Terminal · Kitty":
             try:
                 reloaded = subprocess.run(["pkill", "-SIGUSR1", "-x", "kitty"], capture_output=True, timeout=5)
                 message = "Shortcut saved and Kitty configuration reloaded." if reloaded.returncode == 0 else "Shortcut saved. Kitty will use it when opened."
@@ -109,11 +113,54 @@ def save(request, config_dir):
             temporary.unlink(missing_ok=True)
 
 
+def add(request, config_dir):
+    group = "Desktop · Niri"
+    key = normalize_key(request.get("key", ""), group)
+    command = request.get("command", "").strip()
+    name = request.get("name", "").strip()
+    if not command or len(command) > 4096 or any(c in command for c in "\n\r\0"):
+        raise ValueError("Enter a command on one line, such as kitty or firefox.")
+    if len(name) > 100 or any(c in name for c in "\n\r\0"):
+        raise ValueError("Keep the shortcut name on one line, up to 100 characters.")
+    data = collect(config_dir)
+    if data["error"]:
+        raise ValueError("Could not check existing shortcuts. Refresh before adding one.")
+    for row in data["bindings"]:
+        if row["group"] == group and equivalent(row["rawKey"], group) == equivalent(key, group):
+            raise ValueError("That shortcut is already assigned to " + row["action"] + ".")
+    target = (config_dir / "niri/config.kdl").resolve(strict=True)
+    original = target.read_text()
+    title = " hotkey-overlay-title=" + json.dumps(name, ensure_ascii=False) if name else ""
+    line = "    " + json.dumps(key) + title + " { spawn \"sh\" \"-c\" " + json.dumps(command, ensure_ascii=False) + "; }\n"
+    # A KDL file may contain only one binds node. Insert in its existing block,
+    # or create one locally when bindings are supplied by included profiles.
+    matches = token_matches(original)
+    depth = 0
+    insertion = None
+    in_binds = False
+    for i, match in enumerate(matches):
+        token = match.group()
+        if depth == 0 and token == "binds" and i + 1 < len(matches) and matches[i + 1].group() == "{":
+            in_binds = True
+        if token == "{":
+            depth += 1
+        elif token == "}":
+            depth -= 1
+            if in_binds and depth == 0:
+                insertion = match.start()
+                break
+    if insertion is None:
+        candidate = original + "\nbinds {\n" + line + "}\n"
+    else:
+        candidate = original[:insertion] + "\n" + line + original[insertion:]
+    return persist(target, original, candidate, group, key)
+
+
 if __name__ == "__main__":
     try:
         request = json.loads(sys.stdin.readline())
         config_dir = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
-        result = save(request, config_dir)
+        result = add(request, config_dir) if request.get("operation") == "add" else save(request, config_dir)
     except ValueError as error:
         result = {"ok": False, "error": str(error)}
     except (OSError, subprocess.SubprocessError):

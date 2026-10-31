@@ -106,6 +106,35 @@ Singleton {
         runNiriAction(["focus-monitor", String(name)]);
     }
 
+    function adjacentColumnWindowId(outputName: string, left: bool): int {
+        const workspace = root.workspaces.values.find(value => value.output === outputName && value.active);
+        if (!workspace)
+            return -1;
+        // The assistant and other layer surfaces can own keyboard focus.
+        // The workspace still remembers its active tiled window in that case.
+        const windows = root.clients.values.filter(value => value.workspace.id === workspace.id && !value.floating);
+        const current = windows.find(value => value.id === workspace.activeWindowId);
+        if (!current || Number(current.scrollingPosition[0]) < 1)
+            return -1;
+        const column = Number(current.scrollingPosition[0]);
+        const candidates = windows.filter(value => {
+            const position = Number(value.scrollingPosition[0]);
+            return position >= 1 && (left ? position < column : position > column);
+        });
+        candidates.sort((a, b) => {
+            const distance = Math.abs(Number(a.scrollingPosition[0]) - column)
+                - Math.abs(Number(b.scrollingPosition[0]) - column);
+            return distance || a.focusHistoryID - b.focusHistoryID || a.id - b.id;
+        });
+        return candidates.length > 0 ? candidates[0].id : -1;
+    }
+
+    function focusAdjacentColumn(outputName: string, left: bool): void {
+        const targetId = adjacentColumnWindowId(outputName, left);
+        if (targetId >= 0)
+            focusWindow(targetId);
+    }
+
     function runNiriAction(args) {
         const process = createProcess(["niri", "msg", "action"].concat(args));
         process.exited.connect(() => process.destroy());

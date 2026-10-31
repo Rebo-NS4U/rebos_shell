@@ -15,14 +15,14 @@ class QuickNotesTest(unittest.TestCase):
             (pkg/'modules/services/QuickNotes.qml').write_text(source)
             for component in ('NotesPopup.qml', 'NotesAction.qml'):
                 shutil.copy(root/'modules/widgets/notes'/component,pkg/'modules/widgets/notes')
-            for component in ('StyledText.qml', 'StyledToolTip.qml', 'MotionReveal.qml'):
+            for component in ('StyledText.qml', 'StyledToolTip.qml', 'MotionReveal.qml', 'BlurRegion.qml'):
                 shutil.copy(root/'modules/components'/component,pkg/'modules/components')
             shutil.copy(root/'modules/theme/Icons.qml',pkg/'modules/theme')
             shutil.copy(root/'modules/theme/Motion.qml',pkg/'modules/theme')
             stubs={
               'modules/services/NiriService.qml':'pragma Singleton\nimport Quickshell\nSingleton { property var focusedMonitor: ({name: Quickshell.screens[0].name}) }',
               'modules/globals/GlobalStates.qml':'pragma Singleton\nimport Quickshell\nSingleton { property bool lockscreenVisible: false }',
-              'config/Config.qml':'pragma Singleton\nimport Quickshell\nSingleton { property int animDuration: 0; property var theme: ({font: "Sans", fontSize: 14}) }',
+              'config/Config.qml':'pragma Singleton\nimport Quickshell\nSingleton { property int animDuration: 180; property var theme: ({font: "Sans", fontSize: 14}) }',
               'modules/theme/Colors.qml':'pragma Singleton\nimport Quickshell\nSingleton { property color overBackground: "#eeeeee"; property color primary: "#aaaaff"; property color overPrimary: "#111111"; property color overSurfaceVariant: "#cccccc"; property color tertiary: "#ffccaa"; property color error: "#ff8888" }',
               'modules/theme/Styling.qml':'pragma Singleton\nimport Quickshell\nSingleton { function fontSize(offset) { return 14 + offset; } function radius(offset) { return 16 + offset; } }',
               'modules/components/StyledRect.qml':'import QtQuick\nRectangle { required property string variant; color: "#222222" }',
@@ -35,12 +35,21 @@ class QuickNotesTest(unittest.TestCase):
         import qs.modules.services
         import qs.modules.widgets.notes
         import qs.modules.theme
+        import qs.modules.components
         ShellRoot {
             Process { id: failWrite; command: ["mkdir", Quickshell.env("NOTES_TEST_FILE")] }
             property int step: 0
             FloatingWindow {
                 implicitWidth: 900; implicitHeight: 800; visible: true
                 NotesPopup { id: popup; anchors.fill: parent; screen: Quickshell.screens[0] }
+                BlurRegion { id: notesBlur; target: popup.blurTarget }
+                Connections {
+                    target: popup
+                    function onBlurTargetChanged() {
+                        if (!popup.blurTarget)
+                            check(notesBlur.width === 0 && notesBlur.height === 0, "blur clears during final close frame");
+                    }
+                }
             }
             function check(ok, message) { if (!ok) { console.error("FAIL " + message); Qt.quit(); } }
             Timer { interval: 250; running: true; repeat: true
@@ -56,7 +65,7 @@ class QuickNotesTest(unittest.TestCase):
                         check(QuickNotes.visible, "toggle opens");
                         QuickNotes.edit("first draft");
                     }
-                    if (step === 2) { QuickNotes.edit("second line\\nUnicode: café 📝"); if (Quickshell.env("NOTES_TEST_MODE") === "fail") failWrite.running = true; }
+                    if (step === 2) { check(notesBlur.width > 0 && notesBlur.height > 0, "open notes has blur"); QuickNotes.edit("second line\\nUnicode: café 📝"); if (Quickshell.env("NOTES_TEST_MODE") === "fail") failWrite.running = true; }
                     if (step === 3) Colors.primary = "#80c0a0";
             if (step === 5) {
                         if (Quickshell.env("NOTES_TEST_MODE") === "fail") {
@@ -67,8 +76,19 @@ class QuickNotesTest(unittest.TestCase):
                 }
                         QuickNotes.close();
                         check(!QuickNotes.visible, "close");
+                    }
+                    if (step === 6) {
+                        check(!popup.visible && popup.blurTarget === null, "close animation finishes");
+                        check(notesBlur.width === 0 && notesBlur.height === 0, "closed notes leaves no blur");
                         QuickNotes.toggle();
                         check(QuickNotes.text === "second line\\nUnicode: café 📝", "reopen retains draft");
+                    }
+                    if (step === 7) {
+                        check(notesBlur.width > 0 && notesBlur.height > 0, "reopened notes restores blur");
+                        QuickNotes.close();
+                    }
+                    if (step === 8) {
+                        check(notesBlur.width === 0 && notesBlur.height === 0, "repeated close leaves no blur");
                         console.log("PASS " + Quickshell.env("NOTES_TEST_MODE")); Qt.quit();
                     }
                 }

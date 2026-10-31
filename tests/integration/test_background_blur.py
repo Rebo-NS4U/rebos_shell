@@ -53,8 +53,20 @@ ShellRoot {
     tryCompare(shape,"width",260);
     card.opacity=0;
     tryCompare(shape,"width",0);
+    card.opacity=1;
+    tryCompare(shape,"width",260);
+    // Closing a popup detaches the target on its last animation frame.
+    // Clear before returning, while that frame can still commit the change.
     shape.target=null;
-    compare(shape.width,0);
+    compare(shape.width,0); compare(shape.height,0);
+    shape.target=card;
+    tryCompare(shape,"width",260);
+    ancestor.visible=false;
+    compare(shape.width,0); compare(shape.height,0);
+    ancestor.visible=true;
+    tryCompare(shape,"width",260);
+    card.opacity=0;
+    compare(shape.width,0); compare(shape.height,0);
     console.log("PASS blur bounds follow ancestor movement, transforms, resize, visibility and disabling");
     Qt.quit();
    }

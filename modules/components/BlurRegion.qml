@@ -29,9 +29,17 @@ Region {
         width = Math.max(0, Math.ceil(extent.x) - x);
         height = Math.max(0, Math.ceil(extent.y) - y);
     }
-    onTargetChanged: Qt.callLater(updateGeometry)
+    // Clear during the closing frame. Deferring until after the target is
+    // detached can leave the compositor with the last nonempty blur region.
+    onTargetChanged: updateGeometry()
     onEnabledChanged: updateGeometry()
     Component.onCompleted: Qt.callLater(updateGeometry)
+
+    property Connections targetConnection: Connections {
+        target: root.target
+        function onVisibleChanged() { root.updateGeometry(); }
+        function onOpacityChanged() { root.updateGeometry(); }
+    }
 
     property Connections frameConnection: Connections {
         target: root.target?.Window.window ?? null
