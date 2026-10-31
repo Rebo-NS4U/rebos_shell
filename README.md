@@ -65,20 +65,31 @@ Or use the CLI wrapper:
 ./cli.sh
 ```
 
-## Update an existing checkout
+## Updater
 
-Use the separate updater to get new content from `Rebo-NS4U/rebos_shell` without
-running the installer:
+Use [update.sh](update.sh) to pull the latest shell content from
+[Rebo-NS4U/rebos_shell](https://github.com/Rebo-NS4U/rebos_shell) while keeping
+your saved preferences. Run it from your existing shell Git checkout:
 
 ```bash
+cd /path/to/rebos_shell
 ./update.sh --check   # Preview the changes first
 ./update.sh           # Apply the update
 ```
 
-It follows GitHub's default branch. Use `--branch NAME` to select another branch,
-or `--path /path/to/rebos_shell` to update another existing checkout. It requires
-Git and Python 3 and does not install packages or restart desktop services.
-For a Nix-managed installation, update through Nix instead.
+The updater follows GitHub's default branch and prints its backup location before
+applying changes. Git and Python 3 are required; run it as your normal user.
+To update a checkout from another directory or select a branch:
+
+```bash
+/path/to/rebos_shell/update.sh --path /path/to/rebos_shell --check
+./update.sh --branch rebos-shell-refresh
+```
+
+It updates shell source only, without installing packages or restarting desktop
+services. For a Nix-managed installation, update through Nix instead. The bundled
+desktop installer snapshot has no Git metadata and cannot be updated with this
+script; `--path` must point to a shell Git checkout.
 
 Only changed source files are replaced. Obsolete tracked files are removed;
 unrelated untracked files remain. Local code edits and files that collide with new
