@@ -46,8 +46,8 @@ QtObject {
  * @author Axenide
  * @version 1.0.0
  * @invite gHG9WHyNvH
- * @website https://github.com/Dytox2/rebos_enclosure
- * @source https://github.com/Dytox2/rebos_enclosure
+ * @website https://github.com/Rebo-NS4U/rebos_enclosure
+ * @source https://github.com/Rebo-NS4U/rebos_enclosure
  * @authorId 294856304969908224
  * @authorLink https://axeni.de
 */ 

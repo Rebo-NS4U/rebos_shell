@@ -28,7 +28,7 @@ def main():
     parser.add_argument("--path", default=os.environ["REBOS_UPDATE_SCRIPT_DIR"],
                         help="existing shell checkout (default: this script's directory)")
     parser.add_argument("--repo", default=os.environ.get(
-        "REBOS_SHELL_REPO_URL", "https://github.com/Dytox2/rebos_shell.git"))
+        "REBOS_SHELL_REPO_URL", "https://github.com/Rebo-NS4U/rebos_shell.git"))
     parser.add_argument("--branch", default="HEAD", help="remote branch (default: remote default branch)")
     parser.add_argument("--check", action="store_true", help="preview changes without replacing files")
     args = parser.parse_args()

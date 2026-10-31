@@ -27,9 +27,9 @@ Version **1.1.6** adds the redesigned clock dashboard, edge window navigation,
 desktop shortcut creation and adjustable window corners. It also updates shell
 outlines, media handling, blur and idle network resource use.
 
-Published source: [Dytox2/rebos_shell](https://github.com/Dytox2/rebos_shell).
+Published source: [Rebo-NS4U/rebos_shell](https://github.com/Rebo-NS4U/rebos_shell).
 For the complete Arch desktop, use the bundled
-[rebos_enclosure installer](https://github.com/Dytox2/rebos_enclosure).
+[rebos_enclosure installer](https://github.com/Rebo-NS4U/rebos_enclosure).
 
 - Runs directly on [Niri](https://github.com/YaLTeR/niri) via its JSON event stream
 - Normalized monitor, workspace, and window state for multi-monitor setups
@@ -67,7 +67,7 @@ Or use the CLI wrapper:
 
 ## Update an existing checkout
 
-Use the separate updater to get new content from `Dytox2/rebos_shell` without
+Use the separate updater to get new content from `Rebo-NS4U/rebos_shell` without
 running the installer:
 
 ```bash
