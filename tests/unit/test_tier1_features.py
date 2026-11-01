@@ -1077,7 +1077,10 @@ class TestFeature22_BarConnectivityFreshness(unittest.TestCase):
 
         self.assertIn("property bool _hasPendingUpdate:", bt_content)
         self.assertIn("id: checkStatusProcess", bt_content)
-        self.assertIn("interval: 2000", bt_content)
+        self.assertIn(
+            "interval: !dbusMonitorProcess.running || GlobalStates.dashboardOpen || root.discovering || root.isUpdating ? 2500 : 15000",
+            bt_content,
+        )
         # Ensure stale resurrection with Math.max was removed
         self.assertNotIn("Math.max(root.connectedDevices, connectedCount)", bt_content)
 

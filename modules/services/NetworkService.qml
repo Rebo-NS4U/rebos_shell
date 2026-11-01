@@ -18,6 +18,7 @@ Singleton {
     property real lastScanTime: 0
     property bool wifiConnecting: isUpdating && wifiStatus === "connecting"
     property bool isUpdating: false
+    property string lastError: ""
     property bool wasEnabledBeforeSleep: false
 
     Connections {
@@ -60,13 +61,15 @@ Singleton {
     property list<var> friendlyWifiNetworks: []
 
     function updateFriendlyList() {
-        friendlyWifiNetworks = [...wifiNetworks].sort((a, b) => {
+        const sorted = [...wifiNetworks].sort((a, b) => {
             if (a.active && !b.active)
                 return -1;
             if (!a.active && b.active)
                 return 1;
             return b.strength - a.strength;
         });
+        if (sorted.length !== friendlyWifiNetworks.length || sorted.some((item, i) => item !== friendlyWifiNetworks[i]))
+            friendlyWifiNetworks = sorted;
         updateActive();
     }
 
@@ -78,6 +81,15 @@ Singleton {
             property var reject
             property string buffer: ""
             property string errorBuffer: ""
+            property string input: ""
+            stdinEnabled: input.length > 0
+
+            onStarted: {
+                if (input.length > 0) {
+                    write(input);
+                    input = "";
+                }
+            }
             
             stdout: SplitParser {
                 onRead: data => internalProc.buffer += data + "\n"
@@ -95,26 +107,31 @@ Singleton {
         }
     }
 
-    function runAsync(command, environment = {}) {
+    function runAsync(command, environment = {}, input = "") {
         return new Promise((resolve, reject) => {
             const proc = asyncProcessComp.createObject(root, {
                 command: command,
-                environment: environment,
+                environment: Object.assign({ LANG: "C.UTF-8", LC_ALL: "C.UTF-8" }, environment),
                 resolve: resolve,
-                reject: reject
+                reject: reject,
+                input: input
             });
             proc.running = true;
         });
     }
 
     function enableWifi(enabled = true): void {
+        if (isUpdating) return;
         isUpdating = true;
+        lastError = "";
         const cmd = enabled ? "on" : "off";
         runAsync(["nmcli", "radio", "wifi", cmd]).then(() => {
             update();
             isUpdating = false;
+            if (enabled) rescanWifi(true);
         }).catch(e => {
             isUpdating = false;
+            lastError = String(e);
         });
     }
 
@@ -122,63 +139,64 @@ Singleton {
         enableWifi(!wifiEnabled);
     }
 
-    function rescanWifi(): void {
+    function rescanWifi(afterPowerOn = false): void {
+        if ((!wifiEnabled && !afterPowerOn) || wifiScanning || isUpdating || SuspendManager.isSuspending) return;
         const now = Date.now();
-        if (now - lastScanTime < 3000) { // 3s throttle
-            update();
-            return;
-        }
+        if (now - lastScanTime < 10000) return;
         
         lastScanTime = now;
         wifiScanning = true;
-        runAsync(["nmcli", "dev", "wifi", "list", "--rescan", "yes"]).then(() => {
+        lastError = "";
+        runAsync(["nmcli", "device", "wifi", "rescan"]).then(() => {
             wifiScanning = false;
             update();
         }).catch(e => {
             wifiScanning = false;
+            lastError = String(e);
             update();
         });
     }
 
-    function connectToWifiNetwork(accessPoint: WifiAccessPoint): void {
+    function connectToWifiNetwork(accessPoint: WifiAccessPoint, password = ""): void {
+        if (!accessPoint || isUpdating) return;
         accessPoint.askingPassword = false;
         root.wifiConnectTarget = accessPoint;
         isUpdating = true;
-        runAsync(["nmcli", "dev", "wifi", "connect", accessPoint.ssid]).then(() => {
-            getNetworks.running = true;
+        lastError = "";
+        const command = password.length > 0
+            ? ["nmcli", "--ask", "dev", "wifi", "connect", accessPoint.ssid]
+            : ["nmcli", "dev", "wifi", "connect", accessPoint.ssid];
+        runAsync(command, {}, password.length > 0 ? password + "\n" : "").then(() => {
+            update();
             root.wifiConnectTarget = null;
             isUpdating = false;
         }).catch(e => {
-            if (e.includes("Secrets were required")) {
+            lastError = String(e);
+            if (accessPoint.isSecure) {
                 accessPoint.askingPassword = true;
             }
             root.wifiConnectTarget = null;
             isUpdating = false;
+            update();
         });
     }
 
     function disconnectWifiNetwork(): void {
-        if (active) {
+        if (active && !isUpdating) {
             isUpdating = true;
+            lastError = "";
             runAsync(["nmcli", "connection", "down", active.ssid]).then(() => {
-                getNetworks.running = true;
+                update();
                 isUpdating = false;
             }).catch(e => {
                 isUpdating = false;
+                lastError = String(e);
             });
         }
     }
 
     function changePassword(network: WifiAccessPoint, password: string): void {
-        network.askingPassword = false;
-        isUpdating = true;
-        runAsync(["bash", "-c", `nmcli connection modify "${network.ssid}" wifi-sec.psk "$PASSWORD"`], { "PASSWORD": password }).then(() => {
-            connectToWifiNetwork(network);
-        }).then(() => {
-            isUpdating = false;
-        }).catch(e => {
-            isUpdating = false;
-        });
+        connectToWifiNetwork(network, password);
     }
 
     function openPublicWifiPortal() {
@@ -205,17 +223,18 @@ Singleton {
         onTriggered: root.performUpdate()
     }
 
-    // Periodic sync timer to ensure bar data never stays stale
+    // Events keep connection changes immediate. Poll faster while controls are
+    // open or if the monitor is unavailable; idle checks only refresh signal data.
     Timer {
         id: periodicTimer
-        interval: 2500
+        interval: !subscriber.running || GlobalStates.dashboardOpen || root.wifiScanning || root.isUpdating ? 2500 : 15000
         running: !SuspendManager.isSuspending
         repeat: true
         onTriggered: root.update()
     }
 
     function update() {
-        updateDebouncer.restart();
+        if (!updateDebouncer.running) updateDebouncer.start();
     }
 
     function performUpdate() {
@@ -243,7 +262,7 @@ Singleton {
     // Unified single-process network status and scan results reader
     Process {
         id: checkNetworkProcess
-        command: ["bash", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f TYPE,STATE,CONNECTION d status; echo '---'; nmcli -t -f CONNECTIVITY g; echo '---'; nmcli -g ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY d w || true"]
+        command: ["bash", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f TYPE,STATE,CONNECTION d status; echo '---'; nmcli -t -f CONNECTIVITY g; echo '---'; nmcli -g ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY d w list --rescan no || true"]
         running: false
         property string buffer: ""
         environment: ({
@@ -341,7 +360,7 @@ Singleton {
                         const net = line.split(":");
                         if (net.length < 6) continue;
 
-                        const ssid = net[3] || "";
+                        const ssid = (net[3] || "").replace(rep2, ":");
                         if (!ssid) continue;
 
                         const isActive = (net[0] === "yes");
@@ -416,7 +435,7 @@ Singleton {
                 // 1. Remove gone networks
                 for (let i = rNetworks.length - 1; i >= 0; i--) {
                     const rn = rNetworks[i];
-                    const found = wifiNetworksData.find(n => n.frequency === rn.frequency && n.ssid === rn.ssid && n.bssid === rn.bssid);
+                    const found = networkMap.has(rn.ssid);
                     if (!found) {
                         rNetworks.splice(i, 1);
                         rn.destroy();
@@ -426,7 +445,7 @@ Singleton {
                 // 2. Add or update networks
                 for (let i = 0; i < wifiNetworksData.length; i++) {
                     const data = wifiNetworksData[i];
-                    const existing = rNetworks.find(n => n.frequency === data.frequency && n.ssid === data.ssid && n.bssid === data.bssid);
+                    const existing = rNetworks.find(n => n.ssid === data.ssid);
                     if (existing) {
                         existing.lastIpcObject = data;
                     } else {
