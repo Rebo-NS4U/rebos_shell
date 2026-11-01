@@ -231,7 +231,6 @@ Item {
             // Connect/Disconnect button
             Button {
                 id: actionButton
-                enabled: !(root.device?.connecting ?? false) && !BluetoothService.isUpdating
                 flat: true
                 implicitWidth: 100
                 implicitHeight: 32

@@ -10,7 +10,7 @@ Singleton {
     id: root
 
     property bool enabled: false
-    readonly property bool discovering: scanProcess.running
+    property bool discovering: false
     property bool connected: false
     property int connectedDevices: 0
     property string firstConnectedDeviceName: ""
@@ -18,28 +18,12 @@ Singleton {
     readonly property list<BluetoothDevice> devices: []
     
     // Cached sorted device list - only updates when devices change
-    property list<BluetoothDevice> friendlyDeviceList: []
-
-    // Incremental row changes preserve delegates and the ListView viewport.
-    property alias deviceModel: deviceListModel
-    ListModel {
-        id: deviceListModel
-        dynamicRoles: true
-    }
+    property list<var> friendlyDeviceList: []
     
     // Queue for batching updateInfo calls
-    property list<BluetoothDevice> pendingInfoUpdates: []
+    property var pendingInfoUpdates: []
     property bool isProcessingInfoQueue: false
-    readonly property bool isUpdating: pendingActions > 0
-    property int pendingActions: 0
-    property string lastError: ""
-    property string pairingAddress: ""
-    property string pairingCode: ""
-    property int pairingEntered: 0
-    readonly property string pairingDeviceName: {
-        const device = devices.find(item => item.address === pairingAddress);
-        return device ? device.name : "keyboard";
-    }
+    property bool isUpdating: false
     property bool wasEnabledBeforeSleep: false
 
     Connections {
@@ -50,9 +34,8 @@ Singleton {
             if (discovering) {
                 root.stopDiscovery();
             }
-
+            scanTimer.stop();
             infoQueueTimer.stop();
-            root.isProcessingInfoQueue = false;
         }
         function onWakingUp() {
             // Re-sync status after wake
@@ -60,7 +43,7 @@ Singleton {
 
             // Restore state if it was enabled
             if (root.wasEnabledBeforeSleep) {
-                root.setEnabled(true, false);
+                root.setEnabled(true);
             }
         }
     }
@@ -78,7 +61,7 @@ Singleton {
     }
 
     function updateFriendlyList() {
-        const sorted = [...devices].sort((a, b) => {
+        friendlyDeviceList = [...devices].sort((a, b) => {
             // Connected devices first
             if (a.connected && !b.connected) return -1;
             if (!a.connected && b.connected) return 1;
@@ -88,28 +71,6 @@ Singleton {
             // Then by name
             return (a.name || "").localeCompare(b.name || "");
         });
-        if (sorted.length !== friendlyDeviceList.length || sorted.some((item, i) => item !== friendlyDeviceList[i]))
-            friendlyDeviceList = sorted;
-
-        for (let i = deviceListModel.count - 1; i >= 0; i--) {
-            if (sorted.indexOf(deviceListModel.get(i).device) === -1)
-                deviceListModel.remove(i);
-        }
-        for (let i = 0; i < sorted.length; i++) {
-            if (i < deviceListModel.count && deviceListModel.get(i).device === sorted[i])
-                continue;
-            let existingIndex = -1;
-            for (let j = i + 1; j < deviceListModel.count; j++) {
-                if (deviceListModel.get(j).device === sorted[i]) {
-                    existingIndex = j;
-                    break;
-                }
-            }
-            if (existingIndex >= 0)
-                deviceListModel.move(existingIndex, i, 1);
-            else
-                deviceListModel.insert(i, { device: sorted[i] });
-        }
     }
 
     function onDeviceInfoUpdated(): void {
@@ -160,15 +121,11 @@ Singleton {
             id: internalProc
             property var resolve
             property var reject
-            property var onOutput
             property string buffer: ""
             property string errorBuffer: ""
             
             stdout: SplitParser {
-                onRead: data => {
-                    internalProc.buffer += data + "\n";
-                    if (internalProc.onOutput) internalProc.onOutput(data);
-                }
+                onRead: data => internalProc.buffer += data + "\n"
             }
             
             stderr: SplitParser {
@@ -177,140 +134,101 @@ Singleton {
             
             onExited: (exitCode, exitStatus) => {
                 if (exitCode === 0) resolve(buffer.trim());
-                else reject(errorBuffer.trim() || buffer.trim() || `Process exited with code ${exitCode}`);
+                else reject(errorBuffer.trim() || `Process exited with code ${exitCode}`);
                 destroy();
             }
         }
     }
 
-    function runAsync(command, environment = {}, onOutput = null) {
+    function runAsync(command, environment = {}) {
         return new Promise((resolve, reject) => {
             const proc = asyncProcessComp.createObject(root, {
                 command: command,
-                environment: Object.assign({ LANG: "C.UTF-8", LC_ALL: "C.UTF-8" }, environment),
+                environment: environment,
                 resolve: resolve,
-                reject: reject,
-                onOutput: onOutput
+                reject: reject
             });
             proc.running = true;
         });
     }
 
-    function runAction(command, onOutput = null): var {
-        pendingActions++;
-        lastError = "";
-        return runAsync(command, {}, onOutput).then(result => {
-            pendingActions--;
-            updateDevices();
-            return result;
-        }, error => {
-            pendingActions--;
-            lastError = String(error);
-            throw error;
+    // Control functions
+    function setEnabled(value: bool): void {
+        if (SuspendManager.isSuspending) return;
+        isUpdating = true;
+        runAsync(["bluetoothctl", "power", value ? "on" : "off"]).then(() => {
+            updateStatus();
+            if (value) updateDevices();
+            isUpdating = false;
+        }).catch(e => {
+            isUpdating = false;
         });
-    }
-
-    // Start discovery only after the adapter has finished powering on.
-    function setEnabled(value: bool, scanAfterPowerOn: bool): void {
-        if (SuspendManager.isSuspending || isUpdating) return;
-        if (!value) stopDiscovery();
-        // A software rfkill block must be cleared before BlueZ can power on.
-        // Powering off stays within BlueZ so other radios are unaffected.
-        const unblock = value
-            ? runAction(["rfkill", "unblock", "bluetooth"])
-            : Promise.resolve();
-        unblock.then(() => runAction(["bluetoothctl", "power", value ? "on" : "off"])).then(() => {
-            enabled = value;
-            if (value && scanAfterPowerOn) startDiscovery();
-        }).catch(error => {});
     }
 
     function toggle(): void {
-        setEnabled(!enabled, false);
+        setEnabled(!enabled);
     }
 
     function startDiscovery(): void {
-        if (!enabled || SuspendManager.isSuspending) return;
-        if (scanProcess.running) return;
-        lastError = "";
-        scanProcess.errorBuffer = "";
-        scanProcess.running = true;
+        if (enabled && !SuspendManager.isSuspending) {
+            discovering = true;
+            runAsync(["bluetoothctl", "scan", "on"]).then(() => {
+                scanTimer.restart();
+            }).catch(e => {
+                discovering = false;
+            });
+        }
     }
 
     function stopDiscovery(): void {
-        // BlueZ discovery belongs to its requesting client. Ending that client
-        // releases only our session, without interfering with other scanners.
-        scanProcess.running = false;
+        discovering = false;
+        runAsync(["bluetoothctl", "scan", "off"]).then(() => {
+            scanTimer.stop();
+        }).catch(e => {});
     }
 
-    Process {
-        id: scanProcess
-        command: ["bluetoothctl", "--timeout", "15", "scan", "on"]
-        environment: ({ LANG: "C.UTF-8", LC_ALL: "C.UTF-8" })
-        property string errorBuffer: ""
-        stdout: SplitParser {
-            onRead: data => {
-                if (data.includes("Failed") || data.includes("not available"))
-                    scanProcess.errorBuffer += data + "\n";
-                if (data.includes("Device ")) root.updateDevices();
-            }
-        }
-        stderr: SplitParser {
-            onRead: data => scanProcess.errorBuffer += data + "\n"
-        }
-        onExited: (code, status) => {
-            if (scanProcess.errorBuffer.trim())
-                root.lastError = scanProcess.errorBuffer.trim();
-            else if (code !== 0 && status === 0)
-                root.lastError = "Bluetooth discovery failed (" + code + ")";
-            root.updateDevices();
-        }
-    }
-
-    function connectDevice(address: string): var {
-        return runAction(["bluetoothctl", "connect", address]);
-    }
-
-    function disconnectDevice(address: string): var {
-        return runAction(["bluetoothctl", "disconnect", address]);
-    }
-
-    function pairDevice(address: string): var {
-        if (pairingAddress) return Promise.reject("Another device is already pairing");
-        pairingAddress = address;
-        pairingCode = "";
-        pairingEntered = 0;
-        return runAction(["python3", Qt.resolvedUrl("../../scripts/bluetooth_pair.py").toString().replace(/^file:\/\//, ""), address], data => {
-            try {
-                const event = JSON.parse(data);
-                if (event.event === "keyboard-code") {
-                    root.pairingCode = String(event.code);
-                    root.pairingEntered = event.entered || 0;
-                } else if (event.event === "clear-code") {
-                    root.pairingCode = "";
-                }
-            } catch (error) { console.warn("Bluetooth pairing output:", data); }
-        }).then(result => {
-            root.clearPairingPrompt();
-            return result;
-        }, error => {
-            root.clearPairingPrompt();
-            throw error;
+    function connectDevice(address: string): void {
+        isUpdating = true;
+        runAsync(["bluetoothctl", "connect", address]).then(() => {
+            updateDevices();
+            isUpdating = false;
+        }).catch(e => {
+            isUpdating = false;
         });
     }
 
-    function clearPairingPrompt() {
-        pairingAddress = "";
-        pairingCode = "";
-        pairingEntered = 0;
+    function disconnectDevice(address: string): void {
+        isUpdating = true;
+        runAsync(["bluetoothctl", "disconnect", address]).then(() => {
+            updateDevices();
+            isUpdating = false;
+        }).catch(e => {
+            isUpdating = false;
+        });
     }
 
-    function trustDevice(address: string): var {
-        return runAction(["bluetoothctl", "trust", address]);
+    function pairDevice(address: string): void {
+        isUpdating = true;
+        runAsync(["bluetoothctl", "pair", address]).then(() => {
+            updateDevices();
+            isUpdating = false;
+        }).catch(e => {
+            isUpdating = false;
+        });
     }
 
-    function removeDevice(address: string): var {
-        return runAction(["bluetoothctl", "remove", address]);
+    function trustDevice(address: string): void {
+        runAsync(["bluetoothctl", "trust", address]).catch(e => {});
+    }
+
+    function removeDevice(address: string): void {
+        isUpdating = true;
+        runAsync(["bluetoothctl", "remove", address]).then(() => {
+            updateDevices();
+            isUpdating = false;
+        }).catch(e => {
+            isUpdating = false;
+        });
     }
 
     property bool _isUpdatingProcess: false
@@ -324,8 +242,7 @@ Singleton {
     }
 
     function updateStatus() {
-        // Continuous advertisements must not postpone the update indefinitely.
-        if (!updateDebouncer.running) updateDebouncer.start();
+        updateDebouncer.restart();
     }
 
     function updateDevices() {
@@ -351,21 +268,29 @@ Singleton {
         stdout: SplitParser {
             onRead: (data) => {
                 if (data && (data.includes("Connected") || data.includes("Powered") || data.includes("PropertiesChanged") || data.includes("InterfacesAdded") || data.includes("InterfacesRemoved"))) {
-                    root.updateStatus();
+                    updateDebouncer.restart();
                 }
             }
         }
     }
 
-    // D-Bus handles changes; retain a slower idle fallback.
+    // Periodic poll every 2 seconds
     Timer {
         id: updateTimer
-        interval: !dbusMonitorProcess.running || GlobalStates.dashboardOpen || root.discovering || root.isUpdating ? 2500 : 15000
+        interval: 2000
         running: !SuspendManager.isSuspending
         repeat: true
         onTriggered: {
             root.updateStatus();
         }
+    }
+
+    Timer {
+        id: scanTimer
+        interval: 15000
+        running: false
+        repeat: false
+        onTriggered: root.stopDiscovery()
     }
 
     // Unified single-process status and device extraction (atomic read in ~25ms)
@@ -399,6 +324,7 @@ Singleton {
                     root.connected = false;
                     root.connectedDevices = 0;
                     root.firstConnectedDeviceName = "";
+                    root.discovering = false;
                     for (let i = 0; i < root.devices.length; i++) {
                         const dev = root.devices[i];
                         if (dev) dev.connected = false;
@@ -452,7 +378,6 @@ Singleton {
                 for (let i = rDevices.length - 1; i >= 0; i--) {
                     const rd = rDevices[i];
                     if (!deviceDataList.find(d => d.address === rd.address)) {
-                        root.pendingInfoUpdates = root.pendingInfoUpdates.filter(device => device !== rd);
                         rDevices.splice(i, 1);
                         rd.destroy();
                     }
@@ -466,20 +391,23 @@ Singleton {
                         if (existing.name !== data.name) {
                             existing.name = data.name;
                         }
-                        const connectionChanged = existing.connected !== data.connected;
                         existing.connected = data.connected;
-                        if (connectionChanged || (data.connected && Date.now() - existing.lastInfoRefresh >= 60000)) {
+                        existing.paired = true;
+                        if (data.connected && existing.battery < 0) {
                             root.queueInfoUpdate(existing);
                         }
                     } else {
                         const newDevice = deviceComp.createObject(root, {
                             address: data.address,
                             name: data.name,
-                            connected: data.connected
+                            connected: data.connected,
+                            paired: true
                         });
                         newDevice.infoUpdated.connect(root.onDeviceInfoUpdated);
                         rDevices.push(newDevice);
-                        root.queueInfoUpdate(newDevice);
+                        if (data.connected) {
+                            root.queueInfoUpdate(newDevice);
+                        }
                     }
                 }
 
@@ -500,8 +428,6 @@ Singleton {
         id: deviceComp
         BluetoothDevice {}
     }
-
-    Component.onCompleted: initialize()
 
     property bool _initialized: false
 

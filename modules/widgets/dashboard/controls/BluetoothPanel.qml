@@ -45,42 +45,20 @@ Item {
         BluetoothService.stopDiscovery();
     }
 
-    BluetoothPairingPrompt {
-        id: pairingPrompt
-        anchors.top: parent.top
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: root.contentWidth
-    }
-
-    // Keep the code visible even when the device list is scrolled.
+    // Device list - fills entire width for scroll/drag
     ListView {
         id: deviceList
         anchors.fill: parent
-        anchors.topMargin: pairingPrompt.visible ? pairingPrompt.implicitHeight + 12 : 0
         clip: true
         spacing: 4
         cacheBuffer: 1000
         reuseItems: true
 
-        model: BluetoothService.deviceModel
+        model: BluetoothService.friendlyDeviceList
 
         header: Item {
             width: deviceList.width
-            height: titlebar.height + 8 + (errorText.visible ? errorText.implicitHeight + 8 : 0)
-
-            StyledText {
-                id: errorText
-                anchors.top: titlebar.bottom
-                anchors.topMargin: 8
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: root.contentWidth
-                visible: BluetoothService.lastError.length > 0
-                text: BluetoothService.lastError
-                color: Colors.error
-                wrapMode: Text.Wrap
-                maximumLineCount: 3
-                elide: Text.ElideRight
-            }
+            height: titlebar.height + 8
 
             PanelTitlebar {
                 id: titlebar
@@ -110,14 +88,16 @@ Item {
                 ]
 
                 onToggleChanged: checked => {
-                    BluetoothService.setEnabled(checked, checked);
+                    BluetoothService.setEnabled(checked);
+                    if (checked) {
+                        BluetoothService.startDiscovery();
+                    }
                 }
             }
         }
 
         delegate: Item {
-            id: delegateRoot
-            required property var device
+            required property var modelData
             width: deviceList.width
             height: deviceItem.height
 
@@ -125,7 +105,7 @@ Item {
                 id: deviceItem
                 width: root.contentWidth
                 anchors.horizontalCenter: parent.horizontalCenter
-                device: delegateRoot.device
+                device: parent.modelData
             }
         }
 

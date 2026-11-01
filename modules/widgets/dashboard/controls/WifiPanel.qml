@@ -49,21 +49,7 @@ Item {
 
         header: Item {
             width: networkList.width
-            height: titlebar.height + 8 + (errorText.visible ? errorText.implicitHeight + 8 : 0)
-
-            StyledText {
-                id: errorText
-                anchors.top: titlebar.bottom
-                anchors.topMargin: 8
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: root.contentWidth
-                visible: NetworkService.lastError.length > 0
-                text: NetworkService.lastError
-                color: Colors.error
-                wrapMode: Text.Wrap
-                maximumLineCount: 3
-                elide: Text.ElideRight
-            }
+            height: titlebar.height + 8
 
             PanelTitlebar {
                 id: titlebar
@@ -94,7 +80,7 @@ Item {
                     {
                         icon: Icons.sync,
                         tooltip: "Rescan networks",
-                        enabled: NetworkService.wifiEnabled && !NetworkService.wifiScanning && !NetworkService.isUpdating,
+                        enabled: NetworkService.wifiEnabled,
                         loading: NetworkService.wifiScanning || NetworkService.isUpdating,
                         onClicked: function () {
                             NetworkService.rescanWifi();
@@ -104,6 +90,9 @@ Item {
 
                 onToggleChanged: checked => {
                     NetworkService.enableWifi(checked);
+                    if (checked) {
+                        NetworkService.rescanWifi();
+                    }
                 }
             }
         }

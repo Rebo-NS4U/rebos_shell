@@ -14,35 +14,33 @@ QtObject {
     property int battery: -1
     property bool batteryAvailable: battery >= 0
     property bool connecting: false
-    property real lastInfoRefresh: 0
-    property bool infoRefreshing: false
 
     signal infoUpdated()
 
+    // Connect (auto-trust new devices)
     function connect() {
-        if (connecting) return;
         connecting = true;
-        const pairing = paired ? Promise.resolve() : BluetoothService.pairDevice(address);
-        return pairing.then(() => {
-            return trusted ? Promise.resolve() : BluetoothService.trustDevice(address);
-        }).then(() => BluetoothService.connectDevice(address)).then(() => {
-            connecting = false;
-            updateInfo();
-        }, error => {
-            // The shared service exposes the failure in both Bluetooth panels.
+        let p;
+        if (!trusted) {
+            // Trust first, then connect
+            p = BluetoothService.runAsync(["bluetoothctl", "trust", address]).then(() => {
+                return BluetoothService.runAsync(["bluetoothctl", "connect", address]);
+            });
+        } else {
+            p = BluetoothService.connectDevice(address);
+        }
+
+        return p.catch(e => {
+            console.error(`Failed to connect to ${address}: ${e}`);
+        }).finally(() => {
             connecting = false;
             updateInfo();
         });
     }
 
     function updateInfo() {
-        if (infoRefreshing) return;
-        infoRefreshing = true;
-        lastInfoRefresh = Date.now();
         return BluetoothService.runAsync(["bluetoothctl", "info", address]).then(text => {
-            infoRefreshing = false;
             Qt.callLater(() => {
-                root.battery = -1;
                 const lines = text.split("\n");
                 for (const line of lines) {
                     const trimmed = line.trim();
@@ -58,31 +56,30 @@ QtObject {
                     } else if (trimmed.startsWith("Battery Percentage:")) {
                         const match = trimmed.match(/\((\d+)\)/);
                         if (match) {
-                            root.battery = parseInt(match[1], 10);
+                            root.battery = parseInt(match[1]) || -1;
                         }
                     }
                 }
                 root.infoUpdated();
             });
         }).catch(e => {
-            infoRefreshing = false;
             console.error(`Failed to get info for ${address}: ${e}`);
         });
     }
 
     function disconnect() {
-        BluetoothService.disconnectDevice(address).catch(error => {});
+        BluetoothService.disconnectDevice(address);
     }
 
     function pair() {
-        BluetoothService.pairDevice(address).catch(error => {});
+        BluetoothService.pairDevice(address);
     }
 
     function trust() {
-        BluetoothService.trustDevice(address).catch(error => {});
+        BluetoothService.trustDevice(address);
     }
 
     function forget() {
-        BluetoothService.removeDevice(address).catch(error => {});
+        BluetoothService.removeDevice(address);
     }
 }

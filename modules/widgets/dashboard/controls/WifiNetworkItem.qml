@@ -189,7 +189,7 @@ Item {
                 variant: "internalbg"
 
                 onAccepted: {
-                    if (text.length > 0 && !NetworkService.isUpdating) {
+                    if (text.length > 0) {
                         NetworkService.changePassword(root.network, text);
                         text = "";
                     }
@@ -207,7 +207,6 @@ Item {
 
                 Button {
                     id: actionButton
-                    enabled: !NetworkService.isUpdating
                     flat: true
                     implicitWidth: 100
                     implicitHeight: 32

@@ -188,7 +188,7 @@ Item {
                 implicitHeight: 28
                 radius: 14
                 variant: rescanMouse.containsMouse ? "focus" : "common"
-                enabled: NetworkService.wifiEnabled && !NetworkService.wifiScanning && !NetworkService.isUpdating
+                enabled: NetworkService.wifiEnabled
                 scale: rescanMouse.pressed ? 0.92 : 1.0
 
                 PressBehavior on scale {
@@ -235,7 +235,6 @@ Item {
             // Action 4: Capsule Toggle Switch
             Item {
                 id: toggleSwitch
-                enabled: !NetworkService.isUpdating
                 implicitWidth: 40
                 implicitHeight: 22
                 scale: toggleMouse.pressed ? 0.92 : 1.0
@@ -282,19 +281,12 @@ Item {
                     onClicked: {
                         const next = !NetworkService.wifiEnabled;
                         NetworkService.enableWifi(next);
+                        if (next) {
+                            NetworkService.rescanWifi();
+                        }
                     }
                 }
             }
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            visible: NetworkService.lastError.length > 0
-            text: NetworkService.lastError
-            color: Colors.error
-            wrapMode: Text.Wrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
         }
 
         // Wi-Fi network list

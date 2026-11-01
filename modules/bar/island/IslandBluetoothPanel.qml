@@ -251,27 +251,16 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         const newState = !BluetoothService.enabled;
-                        BluetoothService.setEnabled(newState, newState);
+                        BluetoothService.setEnabled(newState);
+                        if (newState) {
+                            BluetoothService.startDiscovery();
+                        }
                     }
                 }
             }
         }
 
-        BluetoothPairingPrompt {
-            Layout.fillWidth: true
-        }
-
         // Bluetooth device list
-        StyledText {
-            Layout.fillWidth: true
-            visible: BluetoothService.lastError.length > 0
-            text: BluetoothService.lastError
-            color: Colors.error
-            wrapMode: Text.Wrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
-        }
-
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -281,11 +270,11 @@ Item {
                 anchors.fill: parent
                 clip: true
                 spacing: 6
-                model: BluetoothService.deviceModel
+                model: BluetoothService.friendlyDeviceList
 
                 delegate: Item {
                     id: delegateRoot
-                    required property var device
+                    required property var modelData
                     width: deviceList.width
                     height: deviceItem.implicitHeight
 
@@ -293,7 +282,7 @@ Item {
                         id: deviceItem
                         width: parent.width
                         baseVariant: "internalbg"
-                        device: delegateRoot.device
+                        device: delegateRoot.modelData
                     }
                 }
             }
