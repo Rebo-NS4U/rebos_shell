@@ -257,7 +257,8 @@ Singleton {
         }
 
         function setBrightness(value: real): void {
-            value = Math.max(0.01, Math.min(1, value));
+            // Keep every control and IPC request on the same 5% grid.
+            value = Math.max(0.05, Math.min(1, Math.round(value * 20) / 20));
             monitor.brightness = value;
             setTimer.restart();
         }

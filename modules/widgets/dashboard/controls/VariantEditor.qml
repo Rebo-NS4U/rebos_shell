@@ -436,6 +436,8 @@ Item {
 
                     StyledSlider {
                         id: centerXSlider
+                        stepSize: 0.05
+                        snapMode: "always"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 20
                         resizeParent: false
@@ -486,6 +488,8 @@ Item {
 
                     StyledSlider {
                         id: centerYSlider
+                        stepSize: 0.05
+                        snapMode: "always"
                         Layout.fillWidth: true
                         Layout.preferredHeight: 20
                         resizeParent: false
@@ -792,6 +796,8 @@ Item {
 
                         StyledSlider {
                             id: halftoneStartSlider
+                            stepSize: 0.05
+                            snapMode: "always"
                             Layout.fillWidth: true
                             Layout.preferredHeight: 20
                             resizeParent: false
@@ -822,6 +828,8 @@ Item {
 
                         StyledSlider {
                             id: halftoneEndSlider
+                            stepSize: 0.05
+                            snapMode: "always"
                             Layout.fillWidth: true
                             Layout.preferredHeight: 20
                             resizeParent: false

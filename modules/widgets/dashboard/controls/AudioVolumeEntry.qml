@@ -95,6 +95,8 @@ Item {
 
             // Volume slider
             StyledSlider {
+                stepSize: 0.05
+                snapMode: "always"
                 id: volumeSlider
                 Layout.fillWidth: true
                 Layout.preferredHeight: 20

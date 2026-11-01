@@ -685,7 +685,7 @@ Item {
                                     progressColor: Styling.srItem("overprimary")
                                     tooltipText: `${Math.round(value * 100)}%`
                                     scroll: true
-                                    stepSize: 0.01
+                                    stepSize: 0.05
                                     snapMode: "always"
 
                                     readonly property real configValue: Config.theme.shadowOpacity

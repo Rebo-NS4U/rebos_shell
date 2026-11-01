@@ -677,6 +677,8 @@ Item {
 
                 // Brightness slider
                 StyledSlider {
+                    stepSize: 0.05
+                    snapMode: "always"
                     id: brightSlider
                     Layout.fillWidth: true
                     Layout.preferredHeight: 18

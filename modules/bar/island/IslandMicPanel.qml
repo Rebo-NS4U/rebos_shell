@@ -140,6 +140,8 @@ Item {
 
             // Slider track
             StyledSlider {
+                stepSize: 0.05
+                snapMode: "always"
                 id: micSlider
                 Layout.fillWidth: true
                 Layout.preferredHeight: 18
@@ -385,6 +387,8 @@ Item {
                                     }
 
                                     StyledSlider {
+                                        stepSize: 0.05
+                                        snapMode: "always"
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: 16
                                         Layout.leftMargin: 2
