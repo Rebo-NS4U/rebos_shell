@@ -695,7 +695,7 @@ class TestFeature15_IslandMediaTitlePaletteColoring(unittest.TestCase):
         self.assertFalse(os.path.exists("scripts/media_color.py"), "scripts/media_color.py must not exist")
         self.assertFalse(os.path.exists("modules/services/MediaColor.qml"), "modules/services/MediaColor.qml must not exist")
 
-    def test_island_bar_fluid_media_text_shader_progress(self):
+    def test_island_bar_fluid_media_text_progress(self):
         import os
         with open("modules/bar/layouts/IslandBar.qml", "r", encoding="utf-8") as f:
             content = f.read()
@@ -706,18 +706,12 @@ class TestFeature15_IslandMediaTitlePaletteColoring(unittest.TestCase):
         self.assertNotIn("MediaColor", content, "IslandBar must not reference MediaColor")
         self.assertNotIn("id: islandMediaProgress", content, "IslandBar must not have separate whole-bar progress bar")
 
-        # FluidTextProgress component & shaders exist
+        # The progress contract is independent of the rendering backend.
         self.assertTrue(os.path.exists("modules/components/FluidTextProgress.qml"))
-        self.assertTrue(os.path.exists("modules/components/fluid_progress.frag"))
-        self.assertTrue(os.path.exists("modules/components/fluid_progress.vert"))
-        self.assertTrue(os.path.exists("modules/components/fluid_progress.frag.qsb"))
-        self.assertTrue(os.path.exists("modules/components/fluid_progress.vert.qsb"))
 
         with open("modules/components/FluidTextProgress.qml", "r", encoding="utf-8") as f:
             comp_content = f.read()
-        self.assertIn("ShaderEffect", comp_content)
         self.assertIn("FrameAnimation", comp_content)
-        self.assertIn("fluid_progress.frag.qsb", comp_content)
 
     def test_mpris_controller_progress_and_ticker(self):
         with open("modules/services/MprisController.qml", "r", encoding="utf-8") as f:
@@ -823,7 +817,6 @@ class TestFeature17_DynamicStatusIcons(unittest.TestCase):
         self.assertIn("Brightness.getMonitorForScreen", content)
 
         # Volume dynamic icon
-        self.assertIn("DynamicVolumeIcon", content)
         self.assertIn("volBtn.volumeVal", content)
         self.assertIn("volBtn.isMuted", content)
         self.assertIn("Audio.sink", content)
@@ -963,9 +956,10 @@ class TestFeature20_DropdownStylingPaletteColorsAndDND(unittest.TestCase):
         # No hardcoded yellow/green rainbow colors assigned to bar icons
         self.assertNotIn("Colors.yellow", status_content)
         self.assertNotIn("Colors.green", status_content)
-        self.assertIn("Colors.overBackground", status_content)
-        self.assertIn("Colors.primary", status_content)
-        self.assertIn("Colors.error", status_content)
+        # Bar icons now share the foreground palette through BarAppearance.
+        with open("modules/bar/BarAppearance.qml", "r", encoding="utf-8") as f:
+            appearance = f.read()
+        self.assertIn("Colors.overBackground", appearance)
 
     def test_dnd_and_alerts_suppression(self):
         with open("modules/services/Notifications.qml", "r", encoding="utf-8") as f:

@@ -30,6 +30,7 @@ class HoverHintsTest(unittest.TestCase):
     }
     TestCase {id: test; when: false
      property bool captured: false
+     property string checkpoint: "initialization"
      function check() {
       tryCompare(Config,"initialLoadComplete",true,5000);
       const hint=findChild(button,"styled-tooltip"); verify(hint !== null);
@@ -38,13 +39,20 @@ class HoverHintsTest(unittest.TestCase):
       wait(1200); compare(hint.visible,false);
       button.tooltipText=" \\n "; wait(1200); compare(hint.visible,false);
       button.tooltipText="Volume 50%"; tryCompare(hint,"visible",true,2000);
-      verify(hint.width>20); verify(hint.height>10);
+      checkpoint="tooltip enter transition";
+      tryCompare(hint,"opened",true,2000);
+      checkpoint="tooltip dimensions";
+      tryVerify(() => hint.width>20 && hint.height>10,2000,"Tooltip content reaches its layout size");
       compare(hint.text,"Volume 50%");
       const bg=findChild(hint,"styled-tooltip-background"); verify(bg !== null);
-      bg.grabToImage(result => {result.saveToFile(Qt.resolvedUrl("tooltip.png").toString().replace("file://", ""));test.captured=true;});
+      checkpoint="start tooltip capture";
+      verify(bg.grabToImage(result => {test.captured=result.saveToFile(Qt.resolvedUrl("tooltip.png").toString().replace("file://", ""));}),"Tooltip capture starts after its enter transition");
+      checkpoint="finish tooltip capture";
       tryCompare(test,"captured",true,2000);
+      checkpoint="hide tooltip";
       button.tooltipText=""; tryCompare(hint,"visible",false);
       mouseMove(descriptionButton,30,15); tryCompare(descriptionHint,"visible",true,2000);
+      checkpoint="description hover";
       descriptionHint.description=" "; tryCompare(descriptionHint,"visible",false);
       descriptionHint.description="File shelf"; tryCompare(descriptionHint,"visible",true,2000);
       mouseMove(window,550,350); tryCompare(descriptionHint,"visible",false);
@@ -52,7 +60,7 @@ class HoverHintsTest(unittest.TestCase):
      }
     }
     Timer {interval: 800; running: true; onTriggered: test.check()}
-    Timer {interval: 12000; running: true; onTriggered: Qt.exit(1)}
+    Timer {interval: 12000; running: true; onTriggered: { console.error("Tooltip check stopped at",test.checkpoint); Qt.exit(1); }}
    }
   }''')
    runtime=p/'runtime'; runtime.mkdir(mode=0o700)
