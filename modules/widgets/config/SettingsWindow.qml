@@ -14,7 +14,7 @@ FloatingWindow {
     implicitWidth: 1100
     implicitHeight: 760
     title: "rebos_shell Settings"
-    visible: GlobalStates.settingsWindowVisible
+    visible: false
 
     // Center on screen (approximate, since FloatingWindow usually centers by default or relies on WM)
     // We can't easily force center without screen geometry, but WM usually handles it.
@@ -88,16 +88,24 @@ FloatingWindow {
         }
     }
 
-    // Close on visibility change from outside
-    onVisibleChanged: {
-        if (visible) {
+    // Select the screen before showing: changing it on a visible window can
+    // temporarily hide the Wayland surface and feed back into the open state.
+    function syncVisibility() {
+        if (GlobalStates.settingsWindowVisible) {
             preparePlacement();
         }
+        settingsWindow.visible = GlobalStates.settingsWindowVisible;
+    }
 
+    Component.onCompleted: syncVisibility()
+
+    // A screen remap can emit a transient hide; only sync a settled close.
+    onVisibleChanged: {
         if (!visible) {
-            if (GlobalStates.settingsWindowVisible) {
-                GlobalStates.settingsWindowVisible = false;
-            }
+            Qt.callLater(function() {
+                if (!settingsWindow.visible && GlobalStates.settingsWindowVisible)
+                    GlobalStates.settingsWindowVisible = false;
+            });
         }
     }
 
@@ -105,10 +113,7 @@ FloatingWindow {
     Connections {
         target: GlobalStates
         function onSettingsWindowVisibleChanged() {
-            if (GlobalStates.settingsWindowVisible) {
-                settingsWindow.preparePlacement();
-            }
-            settingsWindow.visible = GlobalStates.settingsWindowVisible;
+            settingsWindow.syncVisibility();
         }
     }
 }
