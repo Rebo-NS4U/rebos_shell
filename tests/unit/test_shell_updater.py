@@ -1,5 +1,6 @@
 """Exercise the standalone updater against real disposable Git repositories."""
 import json
+import fcntl
 import os
 from pathlib import Path
 import subprocess
@@ -127,6 +128,17 @@ class ShellUpdaterTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.target / "shell.qml").read_text(), "old shell")
         self.assertEqual(self.backups(), [])
+
+    def test_concurrent_update_is_rejected_before_fetch_or_changes(self):
+        lock_path = self.target / ".git/rebos-shell-update.lock"
+        with lock_path.open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            result = self.run_update()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("another shell update is running", result.stderr)
+        self.assertEqual((self.target / "shell.qml").read_text(), "old shell")
+        self.assertEqual(self.backups(), [])
+        self.assertEqual(self.run_update().returncode, 0)
 
 
 if __name__ == "__main__":

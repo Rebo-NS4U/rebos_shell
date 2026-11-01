@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # === Configuration ===
-REPO_URL="${REBOS_SHELL_REPO_URL:-}"
-INSTALL_PATH="$HOME/.local/src/rebos_shell"
-BIN_DIR="/usr/local/bin"
+REPO_URL="${REBOS_SHELL_REPO_URL:-https://github.com/Rebo-NS4U/rebos_shell.git}"
+INSTALL_PATH="${REBOS_SHELL_INSTALL_PATH:-$HOME/.local/src/rebos_shell}"
+BIN_DIR="${REBOS_SHELL_BIN_DIR:-$HOME/.local/bin}"
 QUICKSHELL_REPO="https://git.outfoxxed.me/outfoxxed/quickshell"
 
 # === Helpers ===
@@ -16,7 +16,7 @@ log_error() { echo -e "${RED}✖  $1${NC}" >&2; }
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 has_theme() { [[ -d "/usr/share/themes/$1" ]] || [[ -d "$HOME/.themes/$1" ]] || [[ -d "/usr/share/themes/${1}-dark" ]]; }
-has_font() { fc-list 2>/dev/null | grep -qi "$1"; }
+has_font() { local fonts; fonts=$(fc-list 2>/dev/null) || return; grep -qi "$1" <<< "$fonts"; }
 
 [[ "$EUID" -eq 0 ]] && {
   log_error "Do not run as root. Use sudo where needed."
@@ -71,14 +71,14 @@ filter_packages() {
   for pkg in "${pkgs[@]}"; do
     local skip=0
 
-    if [[ -n "${BINARY_CHECK[$pkg]}" ]] && has_cmd "${BINARY_CHECK[$pkg]}"; then
-      log_info "Skipping $pkg (${BINARY_CHECK[$pkg]} found)"
+    if [[ -n "${BINARY_CHECK[$pkg]:-}" ]] && has_cmd "${BINARY_CHECK[$pkg]:-}"; then
+      log_info "Skipping $pkg (${BINARY_CHECK[$pkg]:-} found)"
       skip=1
-    elif [[ -n "${THEME_CHECK[$pkg]}" ]] && has_theme "${THEME_CHECK[$pkg]}"; then
-      log_info "Skipping $pkg (theme ${THEME_CHECK[$pkg]} found)"
+    elif [[ -n "${THEME_CHECK[$pkg]:-}" ]] && has_theme "${THEME_CHECK[$pkg]:-}"; then
+      log_info "Skipping $pkg (theme ${THEME_CHECK[$pkg]:-} found)"
       skip=1
-    elif [[ -n "${FONT_CHECK[$pkg]}" ]] && has_font "${FONT_CHECK[$pkg]}"; then
-      log_info "Skipping $pkg (font ${FONT_CHECK[$pkg]} found)"
+    elif [[ -n "${FONT_CHECK[$pkg]:-}" ]] && has_font "${FONT_CHECK[$pkg]:-}"; then
+      log_info "Skipping $pkg (font ${FONT_CHECK[$pkg]:-} found)"
       skip=1
     fi
 
@@ -107,9 +107,9 @@ install_dependencies() {
   fedora)
     log_info "Enabling COPR repositories..."
     sudo dnf install -y --best --allowerasing --setopt=install_weak_deps=False dnf-plugins-core
-    yes | sudo dnf copr enable errornointernet/quickshell
-    yes | sudo dnf copr enable zirconium/packages
-    yes | sudo dnf copr enable iucar/cran
+    sudo dnf -y copr enable errornointernet/quickshell
+    sudo dnf -y copr enable zirconium/packages
+    sudo dnf -y copr enable iucar/cran
 
     local PKGS=(
       kitty tmux fuzzel network-manager-applet blueman
@@ -182,6 +182,7 @@ install_dependencies() {
   *)
     log_error "Unsupported distribution: $DISTRO"
     log_warn "Please install dependencies manually (see nix/packages/)."
+    return 1
     ;;
   esac
 }
@@ -195,7 +196,7 @@ install_phosphor_fonts() {
   TEMP_DIR="$(mktemp -d)"
   FONT_DIR="$HOME/.local/share/fonts/phosphor"
 
-  curl -sL "https://github.com/phosphor-icons/web/archive/refs/tags/v${VERSION}.zip" -o "$TEMP_DIR/phosphor.zip"
+  curl -fsSL "https://github.com/phosphor-icons/web/archive/refs/tags/v${VERSION}.zip" -o "$TEMP_DIR/phosphor.zip"
   unzip -q "$TEMP_DIR/phosphor.zip" -d "$TEMP_DIR"
   mkdir -p "$FONT_DIR"
   find "$TEMP_DIR" -name "*.ttf" -exec cp {} "$FONT_DIR/" \;
@@ -208,60 +209,25 @@ install_phosphor_fonts() {
 setup_repo() {
   [[ "$DISTRO" == "nixos" ]] && return
 
-  if [[ ! -d "$INSTALL_PATH" ]]; then
-    if [[ -z "$REPO_URL" ]]; then
-      log_error "No public rebos_shell repository is configured yet."
-      log_info "Run this development tree directly with: qs -p $(pwd)"
-      exit 1
-    fi
+  if [[ ! -e "$INSTALL_PATH" ]]; then
     log_info "Cloning rebos_shell to $INSTALL_PATH..."
     mkdir -p "$(dirname "$INSTALL_PATH")"
-    git clone "$REPO_URL" "$INSTALL_PATH"
+    git clone -- "$REPO_URL" "$INSTALL_PATH"
     return
   fi
 
-  # Check if it's a git repository
-  if [[ ! -d "$INSTALL_PATH/.git" ]]; then
-    log_warn "$INSTALL_PATH exists but is not a git repository."
-    log_info "Re-initializing repository..."
-    local TMP_DIR
-    TMP_DIR=$(mktemp -d)
-    # Move everything to tmp, avoiding . and ..
-    find "$INSTALL_PATH" -mindepth 1 -maxdepth 1 -exec mv -t "$TMP_DIR" {} +
-    rm -rf "$INSTALL_PATH"
-    git clone "$REPO_URL" "$INSTALL_PATH"
-    log_info "Restoring files from old directory..."
-    cp -rn "$TMP_DIR"/* "$INSTALL_PATH/" 2>/dev/null || true
-    rm -rf "$TMP_DIR"
-  fi
+  local checkout_root
+  checkout_root=$(git -C "$INSTALL_PATH" rev-parse --show-toplevel 2>/dev/null) || {
+    log_error "$INSTALL_PATH exists but is not a Git checkout. Choose another REBOS_SHELL_INSTALL_PATH."
+    return 1
+  }
+  [[ $(cd -- "$INSTALL_PATH" && pwd -P) == "$checkout_root" ]] || {
+    log_error "$INSTALL_PATH must be the root of its own Git checkout."
+    return 1
+  }
+  # Use the same backed-up, preference-preserving path as explicit updates.
+  bash "$(dirname -- "${BASH_SOURCE[0]}")/update.sh" --path "$INSTALL_PATH" --repo "$REPO_URL"
 
-  log_info "Checking repository status..."
-  git -C "$INSTALL_PATH" fetch origin
-
-  local BRANCH
-  BRANCH=$(git -C "$INSTALL_PATH" rev-parse --abbrev-ref HEAD)
-
-  if [[ "$BRANCH" != "main" ]]; then
-    log_warn "On branch '$BRANCH', not 'main'. Skipping update."
-    return
-  fi
-
-  local HAS_CHANGES=0
-  [[ -n "$(git -C "$INSTALL_PATH" status --porcelain)" ]] && HAS_CHANGES=1
-  [[ -n "$(git -C "$INSTALL_PATH" log origin/main..HEAD)" ]] && HAS_CHANGES=1
-
-  if [[ "$HAS_CHANGES" -eq 1 ]]; then
-    echo -e "${YELLOW}⚠  Local changes detected on 'main'.${NC}"
-    echo -e "${RED}This will DISCARD all local changes.${NC}"
-    read -r -p "Continue? [y/N] " response </dev/tty
-    [[ ! "$response" =~ ^[Yy]$ ]] && {
-      log_warn "Update aborted."
-      exit 0
-    }
-  fi
-
-  log_info "Syncing with remote..."
-  git -C "$INSTALL_PATH" reset --hard origin/main
 }
 
 # === Quickshell Build ===
@@ -349,31 +315,60 @@ configure_services() {
 setup_launcher() {
   [[ "$DISTRO" == "nixos" ]] && return
 
-  [[ -f "$HOME/.local/bin/rebos_shell" ]] && rm -f "$HOME/.local/bin/rebos_shell"
-
-  sudo mkdir -p "$BIN_DIR"
+  mkdir -p "$BIN_DIR"
   local LAUNCHER="$BIN_DIR/rebos_shell"
-
+  if [[ -e "$LAUNCHER" && ! -f "$LAUNCHER" || -L "$LAUNCHER" ]]; then
+    log_error "Refusing to replace a linked or non-file launcher: $LAUNCHER"
+    return 1
+  fi
+  if [[ -f "$LAUNCHER" ]]; then
+    cp -p -- "$LAUNCHER" "$LAUNCHER.backup.$(date +%s).$$"
+  fi
   log_info "Creating launcher at $LAUNCHER..."
-  sudo tee "$LAUNCHER" >/dev/null <<-EOF
-		#!/usr/bin/env bash
-		export PATH="$HOME/.local/bin:\$PATH"
-		export QML2_IMPORT_PATH="$HOME/.local/lib/qml:\$QML2_IMPORT_PATH"
-		export QML_IMPORT_PATH="\$QML2_IMPORT_PATH"
-		exec "$INSTALL_PATH/cli.sh" "\$@"
-	EOF
-  sudo chmod +x "$LAUNCHER"
+  {
+    printf '#!/usr/bin/env bash\nset -euo pipefail\n'
+    printf 'export PATH=%q:"$PATH"\n' "$HOME/.local/bin"
+    printf 'export QML2_IMPORT_PATH=%q:"${QML2_IMPORT_PATH:-}"\n' "$HOME/.local/lib/qml"
+    printf 'export QML_IMPORT_PATH="$QML2_IMPORT_PATH"\n'
+    printf 'exec %q "$@"\n' "$INSTALL_PATH/cli.sh"
+  } > "$LAUNCHER"
+  chmod +x "$LAUNCHER"
+  python3 - "$LAUNCHER" "$INSTALL_PATH" "$HOME" <<'PY'
+from pathlib import Path
+import sys
+launcher, source, home = map(Path, sys.argv[1:])
+entry = home / ".local/share/applications/rebos-shell-settings.desktop"
+entry.parent.mkdir(parents=True, exist_ok=True)
+# Desktop Exec uses its own escaping rules, not shell quoting.
+command = str(launcher)
+for character in ('\\', '"', '`', '$'):
+    command = command.replace(character, '\\' + character)
+entry.write_text('[Desktop Entry]\nType=Application\nName=rebos_shell Settings\n'
+                 f'Exec="{command}" run settings\n'
+                 f'Icon={source / "assets/rebos_shell/settings.svg"}\nCategories=Settings;\n')
+PY
   log_success "Launcher created"
+
 }
 
 # === Main ===
-install_dependencies "$1"
-setup_repo
-install_quickshell
-install_python_tools
-configure_services
-setup_launcher
+main() {
+  if [[ ${1:-} == --help || ${1:-} == -h ]]; then
+    printf '%s\n' 'Install standalone rebos_shell (Arch, Fedora or NixOS).'
+    printf '%s\n' 'For the complete Arch desktop use the rebos_enclosure installer.'
+    printf '%s\n' 'Overrides: REBOS_SHELL_REPO_URL, REBOS_SHELL_INSTALL_PATH, REBOS_SHELL_BIN_DIR.'
+    return
+  fi
+  install_dependencies "${1:-}"
+  setup_repo
+  install_quickshell
+  install_python_tools
+  configure_services
+  setup_launcher
+  log_success "Installation complete!"
+  [[ "$DISTRO" == "nixos" ]] || log_info "Run $BIN_DIR/rebos_shell to start."
+}
 
-echo ""
-log_success "Installation complete!"
-[[ "$DISTRO" != "nixos" ]] && echo -e "Run ${GREEN}rebos_shell${NC} to start."
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

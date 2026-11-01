@@ -7,6 +7,7 @@ export REBOS_UPDATE_SCRIPT_DIR
 REBOS_UPDATE_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 exec python3 - "$@" <<'PY'
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -38,6 +39,12 @@ def main():
     root = Path(git("-C", target, "rev-parse", "--show-toplevel").decode().strip()).resolve()
     if target != root:
         parser.error("the shell must be the root of its own Git checkout")
+    gitdir = Path(git("-C", target, "rev-parse", "--absolute-git-dir").decode().strip())
+    update_lock = (gitdir / "rebos-shell-update.lock").open("a")
+    try:
+        fcntl.flock(update_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        parser.error("another shell update is running for this checkout")
     # Do not allow code updates to cover the user's separate saved data trees.
     for env, fallback in (("XDG_CONFIG_HOME", ".config"), ("XDG_STATE_HOME", ".local/state"),
                           ("XDG_DATA_HOME", ".local/share"), ("XDG_CACHE_HOME", ".cache")):
@@ -120,7 +127,6 @@ def main():
                 dest = backup / "files" / name
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dest, follow_symlinks=False)
-        gitdir = Path(git("-C", target, "rev-parse", "--absolute-git-dir").decode().strip())
         if (gitdir / "index").exists():
             shutil.copy2(gitdir / "index", backup / "git-index")
         (backup / "manifest.json").write_text(json.dumps({

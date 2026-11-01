@@ -65,6 +65,19 @@ Or use the CLI wrapper:
 ./cli.sh
 ```
 
+## Standalone installation
+
+For Arch, Fedora or NixOS, run `bash install.sh` from a source checkout. The
+standalone installer uses the published shell repository and its default branch.
+Existing source changes are backed up through the same updater described below;
+an existing non-Git destination is left untouched. The launcher installs into
+`~/.local/bin` and the Settings desktop entry uses the bundled gear icon.
+
+Override `REBOS_SHELL_REPO_URL`, `REBOS_SHELL_INSTALL_PATH` or
+`REBOS_SHELL_BIN_DIR` when testing or choosing another location. This installs
+shell dependencies and configures services; it is not a preview command.
+Use the linked rebos_enclosure installer for the complete Arch desktop.
+
 ## Updater
 
 Use [update.sh](update.sh) to pull the latest shell content from
@@ -79,6 +92,8 @@ cd /path/to/rebos_shell
 
 The updater follows GitHub's default branch and prints its backup location before
 applying changes. Git and Python 3 are required; run it as your normal user.
+Concurrent updates of the same checkout are rejected before fetching or replacing
+files.
 To update a checkout from another directory or select a branch:
 
 ```bash
