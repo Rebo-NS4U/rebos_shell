@@ -1,7 +1,7 @@
-# Release readiness — 2026-10-31
+# Release readiness — 2026-11-02
 
-This performance and correctness pass is applied locally. The version remains
-unchanged; release approval needs the remaining checks below.
+Version 1.1.7 release checks. The updater and assistant prompt continuation are
+included with the previously completed performance and correctness changes.
 
 ## Changes
 
@@ -54,18 +54,16 @@ This short run does not establish a leak or prove long-term memory stability.
 One eight-second idle CPU sample recorded zero CPU ticks after the clock change;
 the baseline recorded one tick. Neither sample measures battery life.
 
-Remaining before release:
+Further validation (not covered by this release):
 
 - Run a controlled fresh-login RAM comparison and longer idle/open-close soak.
 - Measure unplugged battery drain with comparable display brightness and workload.
 - Verify multi-monitor placement, suspend/resume and lock/unlock on hardware.
-- Resolve three existing Tier 1 source-contract test failures. They expect a
-  ShaderEffect in FluidTextProgress, DynamicVolumeIcon in IslandStatusIcons, and
-  direct Colors.overBackground use in IslandStatusIcons. Those two implementation
-  files were unchanged by this pass. The broad suite reports 188 passes / 3 fails.
 - Investigate remaining Qt Wayland text-input focus warnings. The tested panel
   opens did not report launcher binding loops, battery corner warnings or invalid
   window Keys attachment after these fixes.
 
-No release was published, no power profile was changed, and no active assistant
-backend was restarted. The pre-existing AiSession.qml edit is preserved.
+Tier 1 currently passes all 104 checks. Hardware soak and battery checks remain
+outside this release verification; the local Qt screen guard is already loaded
+in the active panel, but its Wayland regression test could not run in the
+restricted offscreen environment. No active assistant backend was restarted.

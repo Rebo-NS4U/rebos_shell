@@ -23,9 +23,10 @@ Multi-monitor support uses Quickshell `Variants` on `Quickshell.screens`.
 
 ## Features
 
-Version **1.1.6** adds the redesigned clock dashboard, edge window navigation,
-desktop shortcut creation and adjustable window corners. It also updates shell
-outlines, media handling, blur and idle network resource use.
+Version **1.1.7** improves updater progress and recovery messages and restores
+failed assistant prompts from the same ACP session. It builds on 1.1.6's
+redesigned clock dashboard, edge window navigation, desktop shortcut creation,
+and adjustable window corners.
 
 Published source: [Rebo-NS4U/rebos_shell](https://github.com/Rebo-NS4U/rebos_shell).
 For the complete Arch desktop, use the bundled

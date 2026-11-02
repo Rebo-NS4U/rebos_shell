@@ -24,14 +24,14 @@ def git(*args, **kwargs):
 
 def main():
     parser = argparse.ArgumentParser(prog="update.sh", description=(
-        "Update an existing rebos_shell checkout; back up changed files and leave "
-        "saved preferences, state, cache, and unrelated local files untouched."))
+        "Download a rebos_shell release into an existing checkout. Changed files "
+        "are backed up first; saved settings and personal data are kept."))
     parser.add_argument("--path", default=os.environ["REBOS_UPDATE_SCRIPT_DIR"],
                         help="existing shell checkout (default: this script's directory)")
     parser.add_argument("--repo", default=os.environ.get(
         "REBOS_SHELL_REPO_URL", "https://github.com/Rebo-NS4U/rebos_shell.git"))
-    parser.add_argument("--branch", default="HEAD", help="remote branch (default: remote default branch)")
-    parser.add_argument("--check", action="store_true", help="preview changes without replacing files")
+    parser.add_argument("--branch", default="HEAD", help="branch or ref to install (default: repository default branch)")
+    parser.add_argument("--check", action="store_true", help="show what would change without installing it")
     args = parser.parse_args()
     target = Path(args.path).expanduser().resolve()
     if not (target / "shell.qml").is_file() or not (target / "cli.sh").is_file():
@@ -54,7 +54,7 @@ def main():
     if git("-C", target, "ls-files", "-u"):
         parser.error("resolve the current Git merge conflicts before updating")
     old = git("-C", target, "rev-parse", "HEAD").decode().strip()
-    print("Fetching the requested shell version…", flush=True)
+    print(f"Checking for updates from {args.repo} ({args.branch})…", flush=True)
     git("-C", target, "fetch", "--no-tags", "--", args.repo, args.branch)
     new = git("-C", target, "rev-parse", "FETCH_HEAD^{commit}").decode().strip()
     tree = {}
@@ -68,6 +68,12 @@ def main():
         tree[os.fsdecode(name)] = mode
     if not {"shell.qml", "cli.sh", "config/Config.qml"}.issubset(tree):
         parser.error("the fetched version is not a rebos_shell source tree")
+    version_result = subprocess.run(
+        ["git", "-C", str(target), "show", f"{new}:version"],
+        text=True, capture_output=True, check=False)
+    new_version = version_result.stdout.strip() if version_result.returncode == 0 else "unknown"
+    old_version_path = target / "version"
+    old_version = old_version_path.read_text().strip() if old_version_path.is_file() else "unknown"
     tracked = {os.fsdecode(p) for p in git("-C", target, "ls-files", "-z").split(b"\0") if p}
     tracked.update(os.fsdecode(p) for p in git(
         "-C", target, "ls-tree", "-rz", "--name-only", old).split(b"\0") if p)
@@ -106,14 +112,15 @@ def main():
                         == bool(src.stat().st_mode & stat.S_IXUSR))
             if not same:
                 changed.append(name)
-        print(f"{len(changed)} files to add/replace; {len(removed)} obsolete tracked files to remove.")
+        print(f"Version: {old_version} → {new_version}")
+        print(f"Changes: {len(changed)} files to add or replace; {len(removed)} obsolete tracked files to remove.")
         for name in changed + removed:
             print(f"  {'remove' if name in removed else 'update'}: {name}")
         if args.check:
-            print("Preview complete. Shell files and preferences were not changed.")
+            print("Preview only: nothing was installed and no files were changed.")
             return
         if not changed and not removed and old == new:
-            print("Already up to date. Preferences preserved.")
+            print(f"Already up to date at version {new_version}. No files changed.")
             return
         # Back up only existing files that will actually change, plus recovery metadata.
         backup_root = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
@@ -153,7 +160,9 @@ def main():
         # Update Git's index and branch without rewriting unchanged worktree files.
         git("-C", target, "read-tree", "--reset", new)
         git("-C", target, "update-ref", "-m", "rebos_shell preference-preserving update", "HEAD", new, old)
-        print(f"Updated to {new[:12]}. Preferences preserved; no services restarted.")
+        print(f"Update complete: rebos_shell {new_version} ({new[:12]}).")
+        print(f"Changed files are backed up at: {backup}")
+        print("Saved settings and personal data were left in place; running services were not restarted.")
 
 
 try:

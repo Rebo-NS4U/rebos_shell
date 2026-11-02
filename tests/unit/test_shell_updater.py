@@ -28,7 +28,7 @@ class ShellUpdaterTests(unittest.TestCase):
                         GIT_AUTHOR_NAME="Updater Test", GIT_AUTHOR_EMAIL="test@example.invalid",
                         GIT_COMMITTER_NAME="Updater Test", GIT_COMMITTER_EMAIL="test@example.invalid")
         self.git("init", "-b", "release", self.remote)
-        for name, content in {"shell.qml": "old shell", "cli.sh": "old cli",
+        for name, content in {"shell.qml": "old shell", "cli.sh": "old cli", "version": "1.0.0\n",
                               "config/Config.qml": "configuration code", "obsolete": "old feature",
                               "unchanged": "keep mtime"}.items():
             self.write(self.remote, name, content)
@@ -38,6 +38,7 @@ class ShellUpdaterTests(unittest.TestCase):
         self.preferences.parent.mkdir(parents=True)
         self.preferences.write_text('{"custom": true}\n')
         self.write(self.remote, "shell.qml", "new shell")
+        self.write(self.remote, "version", "1.0.1\n")
         self.write(self.remote, "new-feature", "new feature")
         (self.remote / "obsolete").unlink()
         self.commit()
@@ -68,6 +69,9 @@ class ShellUpdaterTests(unittest.TestCase):
         before = (self.target / "unchanged").stat().st_mtime_ns
         result = self.run_update()
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Version: 1.0.0 → 1.0.1", result.stdout)
+        self.assertIn("Update complete: rebos_shell 1.0.1", result.stdout)
+        self.assertIn("Changed files are backed up at:", result.stdout)
         self.assertEqual((self.target / "shell.qml").read_text(), "new shell")
         self.assertEqual((self.target / "new-feature").read_text(), "new feature")
         self.assertFalse((self.target / "obsolete").exists())
@@ -90,6 +94,8 @@ class ShellUpdaterTests(unittest.TestCase):
         old = self.git("-C", self.target, "rev-parse", "HEAD")
         result = self.run_update("--check")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Preview only: nothing was installed", result.stdout)
+        self.assertIn("Version: 1.0.0 → 1.0.1", result.stdout)
         self.assertEqual((self.target / "shell.qml").read_text(), "old shell")
         self.assertEqual(self.git("-C", self.target, "rev-parse", "HEAD"), old)
         self.assertEqual(self.backups(), [])
